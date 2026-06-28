@@ -1,122 +1,68 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { RouterProvider, useRoute, matchRoute } from '@/router'
+import { useTheme } from '@/lib/useTheme'
+import { AppShell } from '@/components/layout/AppShell'
 
-function App() {
-  const [count, setCount] = useState(0)
+import Login from '@/pages/auth/Login'
+import ForgotPassword from '@/pages/auth/ForgotPassword'
+import ResetPassword from '@/pages/auth/ResetPassword'
+import Dashboard from '@/pages/Dashboard'
+import AdminUsersList from '@/pages/admins/AdminUsersList'
+import AdminUserForm from '@/pages/admins/AdminUserForm'
+import RolesList from '@/pages/roles/RolesList'
+import RoleForm from '@/pages/roles/RoleForm'
+import Profile from '@/pages/Profile'
+import AuditLogs from '@/pages/audit/AuditLogs'
 
+const AUTH_ROUTES = ['/login', '/forgot-password', '/reset-password']
+
+function NotFound() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
+      <p className="text-5xl font-bold">404</p>
+      <p className="text-muted-foreground">This page doesn't exist.</p>
+      <a href="#/" className="mt-2 text-sm font-medium text-primary hover:underline">Back to dashboard</a>
+    </div>
   )
 }
 
-export default App
+function resolvePage(path) {
+  if (path === '/') return <Dashboard />
+  if (path === '/admin-users') return <AdminUsersList />
+  if (path === '/admin-users/new') return <AdminUserForm />
+  if (path === '/roles') return <RolesList />
+  if (path === '/roles/new') return <RoleForm />
+  if (path === '/audit-logs') return <AuditLogs />
+  if (path === '/profile') return <Profile />
+
+  let m
+  if ((m = matchRoute('/admin-users/:id/edit', path))) return <AdminUserForm id={m.id} />
+  if ((m = matchRoute('/roles/:id/edit', path))) return <RoleForm id={m.id} />
+
+  return <NotFound />
+}
+
+function Routed({ theme, toggle }) {
+  const { path } = useRoute()
+
+  if (AUTH_ROUTES.includes(path)) {
+    const props = { theme, toggleTheme: toggle }
+    if (path === '/forgot-password') return <ForgotPassword {...props} />
+    if (path === '/reset-password') return <ResetPassword {...props} />
+    return <Login {...props} />
+  }
+
+  return (
+    <AppShell theme={theme} toggleTheme={toggle}>
+      {resolvePage(path)}
+    </AppShell>
+  )
+}
+
+export default function App() {
+  const { theme, toggle } = useTheme()
+  return (
+    <RouterProvider>
+      <Routed theme={theme} toggle={toggle} />
+    </RouterProvider>
+  )
+}

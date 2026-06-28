@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Starter Kit API — Documentation</title>
+  <meta name="description" content="Interactive API reference for the Starter Kit Admin API (Laravel 13 + Sanctum)." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    [x-cloak]{display:none!important}
+    ::-webkit-scrollbar{width:10px;height:10px}
+    ::-webkit-scrollbar-thumb{background:rgba(120,120,120,.4);border-radius:9999px}
+    ::-webkit-scrollbar-thumb:hover{background:rgba(120,120,120,.6)}
+    .ep-body{display:none}
+    .ep-open .ep-body{display:block}
+    .ep-open .ep-chevron{transform:rotate(90deg)}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 antialiased">
+
+  <!-- ===================== TOP BAR ===================== -->
+  <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+    <div class="mx-auto flex h-16 max-w-screen-2xl items-center gap-3 px-4 sm:px-6">
+      <button id="menuBtn" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden dark:hover:bg-slate-800" aria-label="Toggle menu">
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="flex items-center gap-2.5">
+        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </span>
+        <div class="leading-tight">
+          <p class="text-sm font-bold tracking-tight">Starter Kit API</p>
+          <p class="text-[11px] text-slate-400">Admin API Reference</p>
+        </div>
+      </div>
+
+      <div class="ml-auto flex items-center gap-2">
+        <div class="relative hidden sm:block">
+          <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+          <input id="searchTop" type="text" placeholder="Search endpoints…  ( / )"
+            class="w-56 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:focus:ring-indigo-900/40 lg:w-72" />
+        </div>
+        <button id="themeBtn" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Toggle theme">
+          <svg class="hidden h-5 w-5 dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36 6.36l-1.42-1.42M7.05 7.05L5.64 5.64m12.72 0l-1.42 1.42M7.05 16.95l-1.41 1.41M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <svg class="block h-5 w-5 dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mx-auto flex max-w-screen-2xl">
+    <!-- ===================== SIDEBAR ===================== -->
+    <div id="overlay" class="fixed inset-0 z-30 hidden bg-slate-900/40 backdrop-blur-sm lg:hidden"></div>
+    <aside id="sidebar"
+      class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full overflow-y-auto border-r border-slate-200 bg-white px-4 py-6 transition-transform duration-200 ease-out lg:sticky lg:top-16 lg:z-0 lg:h-[calc(100vh-4rem)] lg:translate-x-0 dark:border-slate-800 dark:bg-slate-900">
+      <div class="mb-4 sm:hidden">
+        <input id="searchSide" type="text" placeholder="Search endpoints…"
+          class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-800" />
+      </div>
+      <nav id="nav" class="space-y-6 text-sm"></nav>
+    </aside>
+
+    <!-- ===================== MAIN ===================== -->
+    <main class="min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-10">
+      <!-- HERO -->
+      <section id="overview" class="mb-10 scroll-mt-20">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300">
+          <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Laravel 13 · Sanctum · PostgreSQL
+        </span>
+        <h1 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">Admin API Reference</h1>
+        <p class="mt-3 max-w-2xl text-slate-500 dark:text-slate-400">
+          Complete reference for the Starter Kit admin API — authentication, role &amp; permission management,
+          admin users, user addresses, the country-agnostic location hierarchy, and audit logs.
+          Built to drive the <code class="rounded bg-slate-100 px-1.5 py-0.5 text-[13px] dark:bg-slate-800">starter_kit_frontend</code> admin panel.
+        </p>
+
+        <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs uppercase tracking-wide text-slate-400">Base URL</p>
+            <p class="mt-1 font-mono text-sm font-semibold break-all">/api</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs uppercase tracking-wide text-slate-400">Auth</p>
+            <p class="mt-1 text-sm font-semibold">Bearer token (Sanctum)</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs uppercase tracking-wide text-slate-400">Endpoints</p>
+            <p class="mt-1 text-sm font-semibold"><span id="epCount">—</span> documented</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs uppercase tracking-wide text-slate-400">Dev host</p>
+            <p class="mt-1 font-mono text-sm font-semibold">localhost:8080</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONVENTIONS -->
+      <section id="conventions" class="mb-12 scroll-mt-20">
+        <h2 class="mb-4 text-xl font-bold tracking-tight">Conventions</h2>
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <h3 class="font-semibold">Response envelope</h3>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Every JSON response follows the same shape.</p>
+            <pre class="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100"><code>{
+  "success": true,
+  "message": "Human readable message.",
+  "data": { ... }   // object, array, or paginator
+}</code></pre>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <h3 class="font-semibold">Auth header</h3>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Send the Sanctum token on every protected route.</p>
+            <pre class="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100"><code>Accept: application/json
+Authorization: Bearer 1|xxxxxxxx...</code></pre>
+            <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Token comes from <span class="font-mono">POST /admin/login</span> → <span class="font-mono">data.token</span>.</p>
+          </div>
+        </div>
+
+        <div class="mt-4 grid gap-4 lg:grid-cols-3">
+          <div class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <h3 class="font-semibold">Status codes</h3>
+            <ul class="mt-2 space-y-1.5 text-sm">
+              <li><span class="font-mono font-semibold text-emerald-600">200</span> OK</li>
+              <li><span class="font-mono font-semibold text-emerald-600">201</span> Created</li>
+              <li><span class="font-mono font-semibold text-amber-600">401</span> Unauthenticated (missing/invalid token)</li>
+              <li><span class="font-mono font-semibold text-amber-600">403</span> Forbidden (missing permission / self-protection / deactivated)</li>
+              <li><span class="font-mono font-semibold text-amber-600">404</span> Not found</li>
+              <li><span class="font-mono font-semibold text-rose-600">422</span> Validation error</li>
+              <li><span class="font-mono font-semibold text-rose-600">429</span> Too many requests (rate limited)</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <h3 class="font-semibold">Validation error (422)</h3>
+            <pre class="mt-2 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100"><code>{
+  "success": false,
+  "message": "The email field is required.",
+  "errors": {
+    "email": ["The email field is required."]
+  }
+}</code></pre>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <h3 class="font-semibold">Enums</h3>
+            <ul class="mt-2 space-y-2 text-sm">
+              <li><span class="font-medium">Status</span> — <span class="font-mono">0</span> Inactive · <span class="font-mono">1</span> Active</li>
+              <li><span class="font-medium">User type</span> — <span class="font-mono">0</span> User · <span class="font-mono">1</span> Admin</li>
+              <li><span class="font-medium">Address label</span> — <span class="font-mono">1</span> Home · <span class="font-mono">2</span> Work · <span class="font-mono">3</span> Billing · <span class="font-mono">4</span> Shipping · <span class="font-mono">99</span> Other</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINTS RENDER TARGET -->
+      <div id="groups"></div>
+
+      <div id="noResults" class="hidden rounded-xl border border-dashed border-slate-300 p-10 text-center text-slate-400 dark:border-slate-700">
+        No endpoints match your search.
+      </div>
+
+      <footer class="mt-16 border-t border-slate-200 pt-6 text-sm text-slate-400 dark:border-slate-800">
+        Starter Kit API · generated reference · use the Postman collection at
+        <span class="font-mono">starter_kit_api/postman_collection/</span> for live calls.
+      </footer>
+    </main>
+  </div>
+
+  <!-- ===================== DATA + RENDER ===================== -->
+  <script>
+  const PERM = (p) => p; // helper for readability
+
+  const DATA = [
+    {
+      id: 'auth', title: 'Authentication', icon: 'lock',
+      blurb: 'Token issuance, logout, and the OTP-based password reset flow.',
+      endpoints: [
+        {
+          method: 'POST', path: '/admin/login', name: 'Login', auth: 'Public',
+          rate: '5 / min per IP+email',
+          desc: 'Issues a Sanctum token for an active admin. The response is enriched with the admin’s roles and a flat list of permission names so the frontend can drive UI gating from one payload.',
+          body: `{
+  "email": "admin@example.com",
+  "password": "password",
+  "device_name": "web"      // optional, max 120
+}`,
+          rules: [
+            ['email', 'required · email · max:255'],
+            ['password', 'required · string · max:128'],
+            ['device_name', 'nullable · string · max:120'],
+          ],
+          resp: `{
+  "success": true,
+  "message": "Login successful.",
+  "data": {
+    "token": "1|xxxx...",
+    "admin": {
+      "id": 1, "name": "Default Admin", "email": "admin@example.com",
+      "user_type": 1, "user_type_label": "Admin",
+      "status": 1, "status_label": "Active",
+      "roles": [ { "name": "Administrator", "status_label": "Active" } ],
+      "permissions": [ "roles.view", "roles.create", "admins.view", "locations.view" ]
+    }
+  }
+}`,
+          errors: [['422','Invalid credentials'],['403','Account is deactivated, please contact administrator']],
+        },
+        {
+          method: 'POST', path: '/admin/logout', name: 'Logout', auth: 'Bearer',
+          desc: 'Revokes the current Sanctum token only (other devices stay logged in).',
+          resp: `{ "success": true, "message": "Logged out." }`,
+        },
+        {
+          method: 'POST', path: '/admin/forgot-password', name: 'Forgot Password (issue OTP)', auth: 'Public',
+          rate: '3 / min per IP+email',
+          desc: 'Issues a 6-digit OTP (5-minute expiry) and emails it. In dev (MAIL_MAILER=log) the OTP lands in storage/logs/laravel.log.',
+          body: `{ "email": "admin@example.com" }`,
+          rules: [['email','required · email']],
+          resp: `{ "success": true, "message": "OTP sent to your email." }`,
+          errors: [['422','No admin account found for this email / An OTP was already sent…'],['403','Account is deactivated']],
+        },
+        {
+          method: 'POST', path: '/admin/reset-password', name: 'Reset Password (verify OTP)', auth: 'Public',
+          rate: '5 / min per IP+email',
+          desc: 'Verifies the OTP, sets the new password, deletes all OTP rows for the email, and revokes ALL Sanctum tokens for the admin.',
+          body: `{
+  "email": "admin@example.com",
+  "otp": "123456",
+  "password": "NewStrongPass!123",
+  "password_confirmation": "NewStrongPass!123"
+}`,
+          rules: [['email','required · email'],['otp','required · 6 digits'],['password','required · confirmed · strong'],['password_confirmation','required · matches password']],
+          resp: `{ "success": true, "message": "Password reset successful." }`,
+          errors: [['422','Invalid or expired OTP / No admin account found'],['403','Account is deactivated']],
+        },
+        {
+          method: 'POST', path: '/admin/change-password', name: 'Change Password', auth: 'Bearer',
+          desc: 'Changes the password for the authenticated admin and revokes all OTHER Sanctum tokens (keeps the current one). Requires current_password.',
+          body: `{
+  "current_password": "password",
+  "password": "NewStrongPass!123",
+  "password_confirmation": "NewStrongPass!123"
+}`,
+          rules: [['current_password','required'],['password','required · confirmed · strong · different from current'],['password_confirmation','required']],
+          resp: `{ "success": true, "message": "Password changed." }`,
+          errors: [['422','current_password wrong / new password must differ']],
+        },
+      ],
+    },
+
+    {
+      id: 'profile', title: 'Profile', icon: 'user',
+      blurb: 'The authenticated admin’s own account.',
+      endpoints: [
+        {
+          method: 'GET', path: '/admin/profile', name: 'View Profile', auth: 'Bearer',
+          desc: 'Returns the authenticated admin. Same shape as the login response “admin” block (roles + flat permissions).',
+          resp: `{
+  "success": true,
+  "message": "Profile fetched.",
+  "data": {
+    "id": 1, "name": "Default Admin", "email": "admin@example.com",
+    "user_type": 1, "user_type_label": "Admin",
+    "status": 1, "status_label": "Active",
+    "roles": [ { "name": "Administrator", "status_label": "Active" } ],
+    "permissions": [ "roles.view", "admins.view", "locations.view" ]
+  }
+}`,
+        },
+        {
+          method: 'PUT', path: '/admin/profile', name: 'Update Profile', auth: 'Bearer',
+          desc: 'Updates the admin’s name and email. Email must be unique across users (the admin’s own email is ignored).',
+          body: `{ "name": "Default Admin", "email": "admin@example.com" }`,
+          rules: [['name','required · string'],['email','required · email · unique (self ignored)']],
+          resp: `{ "success": true, "message": "Profile updated.", "data": { /* admin shape */ } }`,
+        },
+      ],
+    },
+
+    {
+      id: 'permissions', title: 'Permissions', icon: 'key',
+      blurb: 'Read-only permission catalogue, grouped for the role form.',
+      endpoints: [
+        {
+          method: 'GET', path: '/admin/permissions', name: 'List Permissions (grouped)', auth: 'Bearer', perm: 'roles.view',
+          desc: 'Returns all permissions grouped by their group label — feeds the role create / edit form.',
+          resp: `{
+  "success": true,
+  "message": "Permissions fetched.",
+  "data": [
+    { "group": "Admins", "permissions": [ {"id":5,"name":"admins.create"} ] },
+    { "group": "Roles",  "permissions": [ {"id":1,"name":"roles.create"} ] },
+    { "group": "Users",  "permissions": [ {"id":9,"name":"users.view"} ] }
+  ]
+}`,
+        },
+      ],
+    },
+
+    {
+      id: 'roles', title: 'Roles', icon: 'shield',
+      blurb: 'CRUD for roles and their attached permissions.',
+      endpoints: [
+        {
+          method: 'GET', path: '/admin/roles', name: 'List Roles', auth: 'Bearer', perm: 'roles.view',
+          desc: 'Paginated list of roles with their permissions, newest first.',
+          query: [['per_page','int 1–100 (default 10)'],['name','partial name match'],['status','0 Inactive · 1 Active']],
+          resp: `{
+  "success": true,
+  "message": "Roles fetched.",
+  "data": {
+    "data": [
+      { "id": 2, "name": "Manager", "status": 1, "status_label": "Active",
+        "permissions": [ {"id":1,"name":"roles.view"} ] }
+    ],
+    "links": { "first": "...", "last": "...", "prev": null, "next": null },
+    "meta": { "current_page": 1, "per_page": 10, "total": 2, "last_page": 1 }
+  }
+}`,
+        },
+        {
+          method: 'GET', path: '/admin/roles/active', name: 'Active Roles (options)', auth: 'Bearer',
+          perm: 'admins.create | admins.update',
+          desc: 'Lightweight list of active roles ({id, name}) ordered by name — for populating the role dropdown on the admin-user form.',
+          resp: `{
+  "success": true,
+  "message": "Active roles fetched.",
+  "data": [ { "id": 1, "name": "Administrator" }, { "id": 2, "name": "Manager" } ]
+}`,
+        },
+        {
+          method: 'POST', path: '/admin/roles', name: 'Create Role', auth: 'Bearer', perm: 'roles.create',
+          desc: 'Create a role with a unique name, a status, and an array of permission IDs.',
+          body: `{ "name": "Manager", "status": 1, "permissions": [1, 2, 3] }`,
+          rules: [['name','required · unique'],['status','required · 0 or 1'],['permissions','required · non-empty array of valid permission IDs']],
+          resp: `{ "success": true, "message": "Role created.", "data": { "id": 2, "name": "Manager", "status": 1, "permissions": [ ... ] } }`,
+          status: 201,
+        },
+        {
+          method: 'GET', path: '/admin/roles/{role}', name: 'Show Role', auth: 'Bearer', perm: 'roles.view',
+          desc: 'Returns the role with its attached permissions.',
+          params: [['role','roles.id']],
+          resp: `{ "success": true, "message": "Role fetched.", "data": { "id": 2, "name": "Manager", "status": 1, "permissions": [ ... ] } }`,
+        },
+        {
+          method: 'PUT', path: '/admin/roles/{role}', name: 'Update Role', auth: 'Bearer', perm: 'roles.update',
+          desc: 'Update the role’s name / status and re-sync its permissions.',
+          params: [['role','roles.id']],
+          body: `{ "name": "Manager Updated", "status": 1, "permissions": [1, 2] }`,
+          resp: `{ "success": true, "message": "Role updated.", "data": { ... } }`,
+          errors: [['403','You cannot edit the role currently assigned to you.']],
+        },
+        {
+          method: 'DELETE', path: '/admin/roles/{role}', name: 'Delete Role', auth: 'Bearer', perm: 'roles.delete',
+          desc: 'Delete the role.',
+          params: [['role','roles.id']],
+          resp: `{ "success": true, "message": "Role deleted." }`,
+          errors: [
+            ['403','You cannot delete the role currently assigned to you.'],
+            ['422','This role is currently assigned to N admin(s). Reassign them before deleting.'],
+          ],
+        },
+      ],
+    },
+
+    {
+      id: 'admins', title: 'Admin Users', icon: 'users',
+      blurb: 'CRUD for admin accounts, each assigned a single role.',
+      endpoints: [
+        {
+          method: 'GET', path: '/admin/admin-users', name: 'List Admins', auth: 'Bearer', perm: 'admins.view',
+          desc: 'Paginated list of admin users with role + effective permissions.',
+          query: [['per_page','int 1–100'],['search','match name or email'],['status','0 · 1'],['role_id','filter by assigned role']],
+          resp: `{
+  "success": true,
+  "message": "Admins fetched.",
+  "data": {
+    "data": [
+      { "id": 3, "name": "Jane Manager", "email": "jane@example.com",
+        "user_type": 1, "status": 1, "status_label": "Active",
+        "roles": [ { "name": "Manager", "status_label": "Active" } ],
+        "permissions": [ "roles.view", "admins.view" ] }
+    ],
+    "meta": { "current_page": 1, "per_page": 15, "total": 1 }
+  }
+}`,
+        },
+        {
+          method: 'POST', path: '/admin/admin-users', name: 'Create Admin', auth: 'Bearer', perm: 'admins.create',
+          desc: 'Create a new admin (user_type = Admin) and assign one active role.',
+          body: `{
+  "name": "Jane Manager",
+  "email": "jane@example.com",
+  "password": "Password!123",
+  "password_confirmation": "Password!123",
+  "status": 1,
+  "role_id": 2
+}`,
+          rules: [
+            ['name','required · string · max:150'],
+            ['email','required · email · unique(users)'],
+            ['password','required · confirmed · strong'],
+            ['status','required · 0 or 1'],
+            ['role_id','required · must reference an Active role'],
+          ],
+          resp: `{ "success": true, "message": "Admin created.", "data": { /* admin shape */ } }`,
+          status: 201,
+        },
+        {
+          method: 'GET', path: '/admin/admin-users/{admin_user}', name: 'Show Admin', auth: 'Bearer', perm: 'admins.view',
+          desc: 'Returns the admin with their assigned role and a flat array of effective permission names.',
+          params: [['admin_user','users.id']],
+          resp: `{ "success": true, "message": "Admin fetched.", "data": { /* admin shape */ } }`,
+        },
+        {
+          method: 'PUT', path: '/admin/admin-users/{admin_user}', name: 'Update Admin', auth: 'Bearer', perm: 'admins.update',
+          desc: 'Update name / email / status / role. password is optional — include password + password_confirmation to reset it (revokes the target’s tokens).',
+          params: [['admin_user','users.id']],
+          body: `{
+  "name": "Jane Manager Updated",
+  "email": "jane@example.com",
+  "status": 1,
+  "role_id": 2
+  // optional: "password", "password_confirmation"
+}`,
+          resp: `{ "success": true, "message": "Admin updated.", "data": { ... } }`,
+          errors: [['403','You cannot edit your own admin account.']],
+        },
+        {
+          method: 'DELETE', path: '/admin/admin-users/{admin_user}', name: 'Delete Admin', auth: 'Bearer', perm: 'admins.delete',
+          desc: 'Hard-delete the admin and revoke all of their Sanctum tokens.',
+          params: [['admin_user','users.id']],
+          resp: `{ "success": true, "message": "Admin deleted." }`,
+          errors: [['403','You cannot delete your own admin account.']],
+        },
+      ],
+    },
+
+    {
+      id: 'addresses', title: 'User Addresses', icon: 'pin',
+      blurb: 'Addresses nested under an admin user, each tied to a location (admin_area).',
+      endpoints: [
+        {
+          method: 'GET', path: '/admin/admin-users/{admin_user}/addresses', name: 'List Addresses', auth: 'Bearer', perm: 'admins.view',
+          desc: 'Addresses for the user, primary first then by id. Each row includes the resolved admin_area and a hierarchy breadcrumb.',
+          params: [['admin_user','users.id']],
+          resp: `{
+  "success": true,
+  "message": "Addresses fetched.",
+  "data": [
+    {
+      "id": 10, "user_id": 3, "admin_area_id": 4,
+      "label": 1, "label_name": "Home", "is_primary": true,
+      "address_line1": "12 MG Road", "address_line2": null,
+      "latitude": 18.52, "longitude": 73.85, "notes": null,
+      "admin_area": { "id": 4, "name": "Pune City", "level": "CITY", "level_label": "City", "depth": 4 },
+      "hierarchy": [
+        { "id": 1, "level": "ZONE", "level_label": "Zone", "depth": 1, "name": "Western Zone" },
+        { "id": 4, "level": "CITY", "level_label": "City", "depth": 4, "name": "Pune City" }
+      ],
+      "created_at": "28/06/2026 10:30 AM", "updated_at": "28/06/2026 10:30 AM"
+    }
+  ]
+}`,
+        },
+        {
+          method: 'POST', path: '/admin/admin-users/{admin_user}/addresses', name: 'Create Address', auth: 'Bearer', perm: 'admins.update',
+          desc: 'Add an address to the user. latitude and longitude must be supplied together (or both omitted).',
+          params: [['admin_user','users.id']],
+          body: `{
+  "admin_area_id": 4,
+  "label": 1,
+  "is_primary": true,
+  "address_line1": "12 MG Road",
+  "address_line2": null,
+  "latitude": 18.52,
+  "longitude": 73.85,
+  "notes": "Near the park"
+}`,
+          rules: [
+            ['admin_area_id','required · must be an active admin_area'],
+            ['label','required · 1 Home · 2 Work · 3 Billing · 4 Shipping · 99 Other'],
+            ['is_primary','optional · boolean'],
+            ['address_line1 / address_line2','nullable · max:255'],
+            ['latitude','nullable · -90..90 · paired with longitude'],
+            ['longitude','nullable · -180..180 · paired with latitude'],
+            ['notes','nullable · max:2000'],
+          ],
+          resp: `{ "success": true, "message": "Address created.", "data": { /* address shape */ } }`,
+          status: 201,
+        },
+        {
+          method: 'GET', path: '/admin/admin-users/{admin_user}/addresses/{address}', name: 'Show Address', auth: 'Bearer', perm: 'admins.view',
+          desc: 'Returns one address with admin_area, hierarchy, and the owning user block.',
+          params: [['admin_user','users.id'],['address','user_addresses.id (scoped to the user)']],
+          resp: `{ "success": true, "message": "Address fetched.", "data": { /* address shape */ } }`,
+        },
+        {
+          method: 'PUT', path: '/admin/admin-users/{admin_user}/addresses/{address}', name: 'Update Address', auth: 'Bearer', perm: 'admins.update',
+          desc: 'Partial update — all fields are “sometimes”. lat/long still validated as a pair when present.',
+          params: [['admin_user','users.id'],['address','user_addresses.id']],
+          body: `{ "label": 2, "is_primary": false, "address_line1": "New office" }`,
+          resp: `{ "success": true, "message": "Address updated.", "data": { ... } }`,
+        },
+        {
+          method: 'DELETE', path: '/admin/admin-users/{admin_user}/addresses/{address}', name: 'Delete Address', auth: 'Bearer', perm: 'admins.update',
+          desc: 'Remove the address from the user.',
+          params: [['admin_user','users.id'],['address','user_addresses.id']],
+          resp: `{ "success": true, "message": "Address deleted." }`,
+        },
+      ],
+    },
+
+    {
+      id: 'locations', title: 'Locations', icon: 'globe',
+      blurb: 'Country-agnostic, self-referencing location hierarchy (recursive CTEs). Read-only. All routes require permission locations.view.',
+      endpoints: [
+        {
+          method: 'GET', path: '/admin/locations/countries', name: 'List Countries', auth: 'Bearer', perm: 'locations.view',
+          desc: 'All active countries, ordered by name. Step 1 of the cascading-dropdown flow.',
+          resp: `{
+  "success": true,
+  "message": "Countries fetched.",
+  "data": [
+    { "id": 2, "iso2": "BD", "iso3": "BGD", "name": "Bangladesh", "isd_prefix": "+880", "default_timezone": "Asia/Dhaka", "is_active": true },
+    { "id": 1, "iso2": "IN", "iso3": "IND", "name": "India", "isd_prefix": "+91", "default_timezone": "Asia/Kolkata", "is_active": true }
+  ]
+}`,
+        },
+        {
+          method: 'GET', path: '/admin/locations/countries/{country}/structure', name: 'Country Structure', auth: 'Bearer', perm: 'locations.view',
+          desc: 'The ordered admin levels a country uses — use structure[i].label to title each cascading dropdown (level names vary per country). Cache per session.',
+          params: [['country','countries.id']],
+          resp: `{
+  "success": true,
+  "message": "Country structure fetched.",
+  "data": {
+    "id": 1, "iso2": "IN", "name": "India", "isd_prefix": "+91", "is_active": true,
+    "structure": [
+      { "depth": 1, "level": "ZONE",     "label": "Zone" },
+      { "depth": 2, "level": "STATE",    "label": "State" },
+      { "depth": 3, "level": "DISTRICT", "label": "District" },
+      { "depth": 4, "level": "CITY",     "label": "City" }
+    ]
+  }
+}`,
+          errors: [['404','country id does not exist']],
+        },
+        {
+          method: 'GET', path: '/admin/locations/countries/{country}/top-level', name: 'Top-Level Areas', auth: 'Bearer', perm: 'locations.view',
+          desc: 'Root areas (depth = 1) — options for the FIRST dropdown. Use structure[0].label as the field heading.',
+          params: [['country','countries.id']],
+          resp: `{
+  "success": true,
+  "message": "Top-level areas fetched.",
+  "data": [
+    { "id": 1, "parent_id": null, "country_id": 1, "level": "ZONE", "level_label": "Zone",
+      "depth": 1, "code": "WEST", "name": "Western Zone", "short_name": null,
+      "latitude": null, "longitude": null, "timezone": null, "is_active": true }
+  ]
+}`,
+        },
+        {
+          method: 'GET', path: '/admin/locations/areas/{area}/children', name: 'Area Children', auth: 'Bearer', perm: 'locations.view',
+          desc: 'Direct children of an area (one level deeper) — the cascading drill-down. Empty data = leaf node reached.',
+          params: [['area','admin_areas.id']],
+          resp: `{
+  "success": true,
+  "message": "Child areas fetched.",
+  "data": [
+    { "id": 2, "parent_id": 1, "country_id": 1, "level": "STATE", "level_label": "State",
+      "depth": 2, "code": "MH", "name": "Maharashtra", "short_name": null,
+      "latitude": null, "longitude": null, "timezone": null, "is_active": true }
+  ]
+}`,
+          errors: [['404','area id does not exist']],
+        },
+        {
+          method: 'GET', path: '/admin/locations/countries/{country}/tree', name: 'Country Tree (full nested)', auth: 'Bearer', perm: 'locations.view',
+          desc: 'The entire nested tree for the country in one request (recursive CTE). Use sparingly — prefer top-level + children for cascading UI; use tree only for a full tree picker.',
+          params: [['country','countries.id']],
+          resp: `{
+  "success": true,
+  "message": "Country tree fetched.",
+  "data": [
+    {
+      "id": 1, "level": "ZONE", "level_label": "Zone", "code": "WEST",
+      "name": "Western Zone", "depth": 1,
+      "children": [
+        { "id": 2, "level": "STATE", "level_label": "State", "code": "MH",
+          "name": "Maharashtra", "depth": 2,
+          "children": [ { "id": 4, "level": "CITY", "name": "Pune City", "depth": 4, "children": [] } ] }
+      ]
+    }
+  ]
+}`,
+        },
+      ],
+    },
+
+    {
+      id: 'audit', title: 'Audit Logs', icon: 'doc',
+      blurb: 'Read-only audit trail (Chronicle). Requires permission audit.view.',
+      endpoints: [
+        {
+          method: 'GET', path: '/admin/audit-logs', name: 'List Audit Logs', auth: 'Bearer', perm: 'audit.view',
+          desc: 'Paginated audit entries, newest first. Filter by actor and/or subject — type and id must be supplied together.',
+          query: [
+            ['per_page','int 1–100 (default 25)'],
+            ['actor_type + actor_id','filter by who performed the action (both required together)'],
+            ['subject_type + subject_id','filter by the affected record (both required together)'],
+          ],
+          resp: `{
+  "success": true,
+  "message": "Audit logs fetched.",
+  "data": {
+    "data": [
+      {
+        "id": "uuid", "action": "role.updated",
+        "actor": { "type": "App\\\\Models\\\\User", "id": "1" },
+        "subject": { "type": "App\\\\Models\\\\Role", "id": "2" },
+        "metadata": { ... }, "diff": { ... }, "tags": [ ... ],
+        "context": { ... }, "correlation_id": "uuid",
+        "created_at": "28/06/2026 10:30 AM"
+      }
+    ],
+    "meta": { "current_page": 1, "per_page": 25, "total": 1 }
+  }
+}`,
+        },
+        {
+          method: 'GET', path: '/admin/audit-logs/{entry}', name: 'Show Audit Log', auth: 'Bearer', perm: 'audit.view',
+          desc: 'Returns a single audit entry by id.',
+          params: [['entry','audit entry id (uuid)']],
+          resp: `{ "success": true, "message": "Audit log fetched.", "data": { /* entry shape */ } }`,
+          errors: [['404','entry not found']],
+        },
+      ],
+    },
+  ];
+
+  // ---------- icons ----------
+  const ICONS = {
+    lock:'M12 11c1.1 0 2 .9 2 2v3a2 2 0 11-4 0v-3c0-1.1.9-2 2-2zm6-2V7a6 6 0 10-12 0v2a3 3 0 00-3 3v6a3 3 0 003 3h12a3 3 0 003-3v-6a3 3 0 00-3-3zM8 7a4 4 0 118 0v2H8V7z',
+    user:'M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6z',
+    key:'M14 7a4 4 0 11-3.8 5.2L4 18.4V21h2.6l.7-.7H9v-1.7h1.7l1.1-1.1A4 4 0 1014 7zm2.5 1.5a1 1 0 110 2 1 1 0 010-2z',
+    shield:'M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z',
+    users:'M16 11a3 3 0 100-6 3 3 0 000 6zm-8 0a3 3 0 100-6 3 3 0 000 6zm0 2c-3 0-6 1.5-6 4v2h8v-2c0-1 .4-2 1.2-2.8C9.4 13.4 8.7 13 8 13zm8 0c-.7 0-1.4.1-2 .3.9.9 1.5 2 1.5 3.7v2H22v-2c0-2.5-3-4-6-4z',
+    pin:'M12 2a7 7 0 00-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z',
+    globe:'M12 2a10 10 0 100 20 10 10 0 000-20zm0 2c1.7 0 3.3 2.8 3.8 7H8.2C8.7 6.8 10.3 4 12 4zM6.1 11H4.1A8 8 0 019 4.6 13 13 0 006.1 11zM4.1 13h2A13 13 0 009 19.4 8 8 0 014.1 13zm4 0h7.8C15.3 17.2 13.7 20 12 20s-3.3-2.8-3.8-7zm9.8 0h2A8 8 0 0115 19.4 13 13 0 0017.9 13zm0-2a13 13 0 00-2.9-6.4A8 8 0 0119.9 11h-2z',
+    doc:'M6 2h8l6 6v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm7 1.5V8h4.5L13 3.5zM8 12h8v2H8v-2zm0 4h8v2H8v-2z',
+  };
+
+  const METHOD_STYLE = {
+    GET:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+    POST:   'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
+    PUT:    'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+    DELETE: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
+  };
+
+  const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  function codeBlock(label, code, tone) {
+    const bar = tone === 'resp'
+      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
+      : 'bg-slate-500/10 text-slate-500 dark:text-slate-300';
+    return `
+      <div class="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide ${bar}">
+          <span>${label}</span>
+          <button class="copyBtn inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-white" data-code="${esc(code)}">
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 8V5a2 2 0 012-2h9a2 2 0 012 2v9a2 2 0 01-2 2h-3M5 8h9a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2v-9a2 2 0 012-2z"/></svg>
+            <span class="copyLabel">Copy</span>
+          </button>
+        </div>
+        <pre class="overflow-x-auto bg-slate-900 p-3.5 text-[12.5px] leading-relaxed text-slate-100"><code>${esc(code)}</code></pre>
+      </div>`;
+  }
+
+  function table(title, rows, cols) {
+    if (!rows || !rows.length) return '';
+    const head = cols.map(c => `<th class="px-3 py-2 text-left font-semibold">${c}</th>`).join('');
+    const body = rows.map(r => `<tr class="border-t border-slate-100 dark:border-slate-800">
+      <td class="px-3 py-2 font-mono text-[12.5px] text-indigo-600 dark:text-indigo-300 align-top">${esc(r[0])}</td>
+      <td class="px-3 py-2 text-slate-600 dark:text-slate-300">${esc(r[1])}</td></tr>`).join('');
+    return `<div class="mb-4">
+      <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">${title}</p>
+      <div class="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+        <table class="w-full text-sm"><thead class="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-400 dark:bg-slate-800/60">${head ? `<tr>${head}</tr>`:''}</thead>
+        <tbody>${body}</tbody></table>
+      </div></div>`;
+  }
+
+  function errorList(errors) {
+    if (!errors || !errors.length) return '';
+    const items = errors.map(([code, msg]) => `
+      <li class="flex items-start gap-2">
+        <span class="mt-0.5 inline-flex shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${code[0]==='4' && code!=='404' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300':'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'}">${code}</span>
+        <span class="text-slate-600 dark:text-slate-300">${esc(msg)}</span>
+      </li>`).join('');
+    return `<div class="mb-4">
+      <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Error responses</p>
+      <ul class="space-y-1.5 text-sm">${items}</ul></div>`;
+  }
+
+  function badge(text, cls) {
+    return `<span class="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${cls}">${text}</span>`;
+  }
+
+  function epId(ep) { return (ep.method + ep.path).toLowerCase().replace(/[^a-z0-9]+/g,'-'); }
+
+  function renderEndpoint(ep) {
+    const m = METHOD_STYLE[ep.method] || 'bg-slate-100 text-slate-700';
+    const authBadge = ep.auth === 'Public'
+      ? badge('Public', 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400')
+      : badge('🔒 Bearer', 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300');
+    const permBadge = ep.perm ? badge('perm: ' + ep.perm, 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300') : '';
+    const rateBadge = ep.rate ? badge('⏱ ' + ep.rate, 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300') : '';
+    const statusBadge = ep.status ? badge('→ ' + ep.status, 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300') : '';
+
+    return `
+    <article id="${epId(ep)}" class="ep scroll-mt-20 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+      data-search="${esc((ep.method+' '+ep.path+' '+ep.name+' '+(ep.perm||'')).toLowerCase())}">
+      <button class="ep-toggle flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
+        <svg class="ep-chevron h-4 w-4 shrink-0 text-slate-400 transition-transform" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        <span class="w-16 shrink-0 rounded-md px-2 py-1 text-center text-[11px] font-bold ${m}">${ep.method}</span>
+        <span class="min-w-0 flex-1">
+          <span class="block truncate font-mono text-[13px] font-medium text-slate-700 dark:text-slate-200">${esc(ep.path)}</span>
+          <span class="block truncate text-xs text-slate-400">${esc(ep.name)}</span>
+        </span>
+        ${ep.perm ? `<span class="hidden shrink-0 sm:inline">${permBadge}</span>` : ''}
+      </button>
+
+      <div class="ep-body border-t border-slate-100 px-4 py-4 dark:border-slate-800">
+        <div class="mb-3 flex flex-wrap items-center gap-2">${authBadge}${permBadge}${rateBadge}${statusBadge}</div>
+        <p class="mb-4 text-sm text-slate-600 dark:text-slate-300">${esc(ep.desc)}</p>
+        ${table('Path parameters', ep.params, ['Param','Description'])}
+        ${table('Query parameters', ep.query, ['Param','Description'])}
+        ${table('Body fields', ep.rules, ['Field','Rules'])}
+        <div class="grid gap-3 ${ep.body ? 'lg:grid-cols-2' : ''}">
+          ${ep.body ? codeBlock('Request body', ep.body, 'req') : ''}
+          ${ep.resp ? codeBlock('Response · ' + (ep.status||200), ep.resp, 'resp') : ''}
+        </div>
+        <div class="mt-4">${errorList(ep.errors)}</div>
+      </div>
+    </article>`;
+  }
+
+  function renderGroup(g) {
+    const eps = g.endpoints.map(renderEndpoint).join('');
+    return `
+    <section id="${g.id}" class="group-sec mb-12 scroll-mt-20">
+      <div class="mb-4">
+        <h2 class="flex items-center gap-2.5 text-xl font-bold tracking-tight">
+          <svg class="h-5 w-5 text-indigo-500" fill="currentColor" viewBox="0 0 24 24"><path d="${ICONS[g.icon]||''}"/></svg>
+          ${esc(g.title)}
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400 dark:bg-slate-800">${g.endpoints.length}</span>
+        </h2>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">${esc(g.blurb)}</p>
+      </div>
+      <div class="space-y-2.5">${eps}</div>
+    </section>`;
+  }
+
+  function renderNav() {
+    return DATA.map(g => `
+      <div>
+        <p class="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="${ICONS[g.icon]||''}"/></svg>${esc(g.title)}
+        </p>
+        <ul class="space-y-0.5">
+          ${g.endpoints.map(ep => `
+            <li>
+              <a href="#${epId(ep)}" data-target="${epId(ep)}"
+                 class="nav-link group flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+                <span class="w-9 shrink-0 rounded px-1 text-center text-[9px] font-bold ${METHOD_STYLE[ep.method]}">${ep.method}</span>
+                <span class="truncate">${esc(ep.name)}</span>
+              </a>
+            </li>`).join('')}
+        </ul>
+      </div>`).join('');
+  }
+
+  // ---------- mount ----------
+  document.getElementById('groups').innerHTML = DATA.map(renderGroup).join('');
+  document.getElementById('nav').innerHTML = renderNav();
+  document.getElementById('epCount').textContent = DATA.reduce((n,g)=>n+g.endpoints.length,0);
+
+  // ---------- interactions ----------
+  // accordion (expand first of each? keep collapsed; expand on hash)
+  document.querySelectorAll('.ep-toggle').forEach(btn => {
+    btn.addEventListener('click', () => btn.closest('.ep').classList.toggle('ep-open'));
+  });
+
+  // copy buttons
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.copyBtn');
+    if (!btn) return;
+    navigator.clipboard.writeText(btn.dataset.code).then(() => {
+      const lbl = btn.querySelector('.copyLabel');
+      const old = lbl.textContent; lbl.textContent = 'Copied!';
+      btn.classList.add('text-emerald-500');
+      setTimeout(() => { lbl.textContent = old; btn.classList.remove('text-emerald-500'); }, 1200);
+    });
+  });
+
+  // theme
+  const root = document.documentElement;
+  const setTheme = (dark) => { root.classList.toggle('dark', dark); localStorage.setItem('sk-theme', dark ? 'dark':'light'); };
+  setTheme(localStorage.getItem('sk-theme') ? localStorage.getItem('sk-theme')==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.getElementById('themeBtn').addEventListener('click', () => setTheme(!root.classList.contains('dark')));
+
+  // mobile sidebar
+  const sidebar = document.getElementById('sidebar'), overlay = document.getElementById('overlay');
+  const openSide = () => { sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); };
+  const closeSide = () => { sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden'); };
+  document.getElementById('menuBtn').addEventListener('click', openSide);
+  overlay.addEventListener('click', closeSide);
+  document.querySelectorAll('.nav-link').forEach(a => a.addEventListener('click', () => {
+    if (window.innerWidth < 1024) closeSide();
+    const ep = document.getElementById(a.dataset.target);
+    if (ep) ep.classList.add('ep-open');
+  }));
+
+  // search (both inputs synced)
+  const noResults = document.getElementById('noResults');
+  function applySearch(q) {
+    q = q.trim().toLowerCase();
+    let any = false;
+    document.querySelectorAll('.group-sec').forEach(sec => {
+      let visible = 0;
+      sec.querySelectorAll('.ep').forEach(ep => {
+        const match = !q || ep.dataset.search.includes(q);
+        ep.style.display = match ? '' : 'none';
+        if (match) { visible++; any = true; if (q) ep.classList.add('ep-open'); }
+      });
+      sec.style.display = visible ? '' : 'none';
+    });
+    noResults.classList.toggle('hidden', any);
+  }
+  ['searchTop','searchSide'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', (e) => {
+      applySearch(e.target.value);
+      const other = id==='searchTop' ? 'searchSide':'searchTop';
+      const o = document.getElementById(other); if (o) o.value = e.target.value;
+    });
+  });
+  // "/" focuses search
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
+      e.preventDefault(); document.getElementById('searchTop').focus();
+    }
+  });
+
+  // scrollspy — highlight active nav link
+  const links = new Map();
+  document.querySelectorAll('.nav-link').forEach(a => links.set(a.dataset.target, a));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      const a = links.get(en.target.id);
+      if (!a) return;
+      if (en.isIntersecting) {
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('bg-indigo-50','text-indigo-700','dark:bg-indigo-500/10','dark:text-indigo-300','font-medium'));
+        a.classList.add('bg-indigo-50','text-indigo-700','dark:bg-indigo-500/10','dark:text-indigo-300','font-medium');
+      }
+    });
+  }, { rootMargin: '-80px 0px -70% 0px' });
+  document.querySelectorAll('.ep').forEach(ep => spy.observe(ep));
+
+  // open endpoint targeted by hash on load
+  if (location.hash) {
+    const t = document.getElementById(location.hash.slice(1));
+    if (t && t.classList.contains('ep')) t.classList.add('ep-open');
+  }
+  </script>
+</body>
+</html>
