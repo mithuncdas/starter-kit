@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Auth — Access &amp; Refresh Token Implementation (React)</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a212b; --panel2:#141a22; --ink:#e6edf3; --muted:#9fb0c0;
+    --accent:#4ea1ff; --accent2:#7ee787; --warn:#ffb454; --danger:#ff6b6b;
+    --border:#2a3645; --code-bg:#0b0f14; --kw:#ff7b9c; --str:#7ee787; --com:#6b7d8f; --fn:#ffd479;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.65; font-size:16px;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px 120px}
+  header.hero{
+    background:linear-gradient(135deg,#11202e 0%,#0f1419 60%); border-bottom:1px solid var(--border);
+    padding:56px 24px 40px; margin-bottom:8px;
+  }
+  header.hero .inner{max-width:1080px;margin:0 auto}
+  header.hero h1{font-size:34px; margin:0 0 8px; letter-spacing:-.5px}
+  header.hero p{color:var(--muted); margin:0; font-size:17px; max-width:760px}
+  .tag{display:inline-block;background:#16324a;color:var(--accent);border-radius:999px;
+    padding:3px 12px;font-size:12.5px;font-weight:600;letter-spacing:.3px;margin-bottom:18px;border:1px solid #234b6b}
+  nav.toc{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 24px; margin:28px 0 40px;
+  }
+  nav.toc h2{margin:0 0 12px; font-size:13px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted)}
+  nav.toc ol{margin:0; padding-left:20px; columns:2; column-gap:40px}
+  nav.toc a{color:var(--accent); text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+  h2.section{font-size:25px; margin:52px 0 14px; padding-top:14px; border-top:1px solid var(--border); letter-spacing:-.3px}
+  h3{font-size:18.5px; margin:30px 0 10px; color:#cfe3f7}
+  h4{font-size:15.5px;margin:22px 0 8px;color:var(--accent2)}
+  p{margin:12px 0}
+  code.inline{background:#1d2733;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:13.5px;
+    font-family:"SF Mono", "JetBrains Mono",Consolas,monospace;color:#ffd9a8}
+  a{color:var(--accent)}
+  .muted{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  @media(max-width:760px){.grid{grid-template-columns:1fr} nav.toc ol{columns:1}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+  .card h4{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px;overflow:hidden;border-radius:10px}
+  th,td{border:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top}
+  th{background:#16202b;color:#cfe3f7;font-weight:600}
+  tr:nth-child(even) td{background:var(--panel2)}
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-radius:10px; padding:16px 18px; overflow:auto;
+    font-family:"SF Mono","JetBrains Mono",Consolas,monospace; font-size:13.5px; line-height:1.6; margin:14px 0;
+  }
+  pre .c{color:var(--com)} pre .k{color:var(--kw)} pre .s{color:var(--str)} pre .f{color:var(--fn)} pre .n{color:#79c0ff}
+  .filelabel{display:inline-block;background:#0b1622;border:1px solid var(--border);border-bottom:none;
+    border-radius:8px 8px 0 0;padding:6px 14px;font-size:12.5px;color:var(--accent2);font-family:monospace;margin-top:18px}
+  .filelabel + pre{margin-top:0;border-top-left-radius:0}
+  .note{border-left:4px solid var(--accent);background:#102233;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .warn{border-left:4px solid var(--warn);background:#2a2113;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .danger{border-left:4px solid var(--danger);background:#2a1414;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .ok{border-left:4px solid var(--accent2);background:#13251a;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .seq{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:8px 4px;margin:18px 0;font-family:monospace;font-size:13px;overflow:auto}
+  .seq pre{background:none;border:none;margin:0;padding:14px 18px;color:#bcd}
+  .pill{display:inline-block;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600;font-family:monospace}
+  .pill.get{background:#13351f;color:#7ee787;border:1px solid #1f5631}
+  .pill.post{background:#13283f;color:#79c0ff;border:1px solid #234b6b}
+  .pill.mem{background:#2a2030;color:#e9a8ff;border:1px solid #4a2f57}
+  .pill.cookie{background:#2a2113;color:#ffb454;border:1px solid #4a3a1c}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:13.5px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0 0}
+  .legend span{font-size:13px;color:var(--muted)}
+  hr.soft{border:none;border-top:1px dashed var(--border);margin:34px 0}
+  ul.tick{list-style:none;padding-left:0}
+  ul.tick li{padding-left:26px;position:relative;margin:7px 0}
+  ul.tick li:before{content:"✓";position:absolute;left:0;color:var(--accent2);font-weight:700}
+  ul.cross li:before{content:"✕";color:var(--danger)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="inner">
+    <span class="tag">LARAVEL SANCTUM · REACT SPA · ACCESS + REFRESH TOKENS</span>
+    <h1>Admin Authentication — Access &amp; Refresh Token Guide</h1>
+    <p>How the admin auth flow works end-to-end, how to consume it from a React application, where each
+    token lives, and exactly how the short-lived access token is silently renewed using the
+    refresh-token cookie when it expires.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#overview">Architecture overview</a></li>
+    <li><a href="#strategy">Token strategy</a></li>
+    <li><a href="#endpoints">API endpoints</a></li>
+    <li><a href="#lifecycle">Token lifecycle (sequence)</a></li>
+    <li><a href="#setup">React: axios setup</a></li>
+    <li><a href="#context">React: auth context</a></li>
+    <li><a href="#login">React: login</a></li>
+    <li><a href="#interceptor">React: silent refresh interceptor</a></li>
+    <li><a href="#bootstrap">React: restore session on reload</a></li>
+    <li><a href="#logout">React: logout</a></li>
+    <li><a href="#routes">React: protected routes</a></li>
+    <li><a href="#expiry">What happens when the access token expires</a></li>
+    <li><a href="#dualmode">Dual-mode: web vs native apps</a></li>
+    <li><a href="#mobile-storage">Mobile: where to store the token</a></li>
+    <li><a href="#mobile-code">Mobile: login &amp; refresh (Kotlin / Swift)</a></li>
+    <li><a href="#security">Security notes</a></li>
+    <li><a href="#env">Environment &amp; production</a></li>
+    <li><a href="#faq">FAQ / troubleshooting</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================= -->
+<h2 class="section" id="overview">1. Architecture overview</h2>
+<p>The API issues <strong>two tokens</strong> on a successful login. They have different lifetimes,
+different storage locations, and different privileges:</p>
+
+<div class="grid">
+  <div class="card">
+    <h4>Access token <span class="pill mem">in memory</span></h4>
+    <p class="muted" style="margin:6px 0 0">Short-lived (10&nbsp;min). Returned in the JSON body.
+    Stored only in React state / a JS variable. Sent on every API call in the
+    <code class="inline">Authorization: Bearer</code> header. Grants the <code class="inline">access</code> ability.</p>
+  </div>
+  <div class="card">
+    <h4>Refresh token <span class="pill cookie">httpOnly cookie</span></h4>
+    <p class="muted" style="margin:6px 0 0">Longer-lived (60&nbsp;min, sliding). Delivered as an
+    <code class="inline">httpOnly</code>, <code class="inline">Secure</code>,
+    <code class="inline">SameSite=Strict</code> cookie. JavaScript <em>cannot</em> read it.
+    Only ever sent to <code class="inline">/api/admin/*</code>. Grants the <code class="inline">refresh</code> ability only.</p>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Why this split?</strong> Keeping the access token out of <code class="inline">localStorage</code> means an
+  XSS payload can't exfiltrate a long-lived credential — the in-memory access token dies in 10&nbsp;minutes and
+  vanishes on reload. The refresh token <em>is</em> long-lived, but it lives in an <code class="inline">httpOnly</code>
+  cookie that JavaScript physically cannot read, so XSS can't steal it either.
+</div>
+
+<div class="seq">
+<pre>
+  Browser (React SPA)                         Laravel API
+  ───────────────────                         ───────────
+        │   POST /api/admin/login              │
+        │ ───────────────────────────────────▶ │  verify credentials
+        │                                      │  issue access (10m) + refresh (60m)
+        │ ◀─────────────────────────────────── │
+        │   { access_token } in body           │
+        │   Set-Cookie: refresh_token (httpOnly)│
+        │                                      │
+   [access_token in memory]   [refresh_token in browser cookie jar — JS can't see it]
+        │                                      │
+        │   GET /api/admin/...                  │
+        │   Authorization: Bearer &lt;access&gt;      │
+        │ ───────────────────────────────────▶ │  ability:access ✓
+        │ ◀─────────────────────────────────── │
+        │                                      │
+        │   ... 10 minutes pass, access expires ...
+        │                                      │
+        │   GET /api/admin/...  (expired)       │
+        │ ───────────────────────────────────▶ │  401 Unauthorized
+        │ ◀─────────────────────────────────── │
+        │                                      │
+        │   POST /api/admin/refresh             │
+        │   Cookie: refresh_token (auto-sent)   │
+        │ ───────────────────────────────────▶ │  validate + ROTATE refresh
+        │ ◀─────────────────────────────────── │  new access + new refresh cookie
+        │   { access_token } (new)             │
+        │   Set-Cookie: refresh_token (new)     │
+        │                                      │
+        │   retry original GET with new access  │
+        │ ───────────────────────────────────▶ │  200 OK
+</pre>
+</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="strategy">2. Token strategy</h2>
+<table>
+  <tr><th>&nbsp;</th><th>Access token</th><th>Refresh token</th></tr>
+  <tr><td><strong>Lifetime</strong></td><td>10 minutes</td><td>60 minutes (slides forward on every refresh)</td></tr>
+  <tr><td><strong>Ability (scope)</strong></td><td><code class="inline">access</code></td><td><code class="inline">refresh</code></td></tr>
+  <tr><td><strong>Delivered as</strong></td><td>JSON <code class="inline">data.access_token</code></td><td><code class="inline">Set-Cookie: refresh_token</code></td></tr>
+  <tr><td><strong>Stored in</strong></td><td>React memory (state / variable)</td><td>Browser cookie jar (httpOnly)</td></tr>
+  <tr><td><strong>Readable by JS?</strong></td><td>Yes (you hold it)</td><td><strong>No</strong> (httpOnly)</td></tr>
+  <tr><td><strong>Sent on</strong></td><td>Every request, <code class="inline">Authorization</code> header</td><td>Only <code class="inline">/api/admin/*</code>, automatically by browser</td></tr>
+  <tr><td><strong>Can call business endpoints?</strong></td><td>Yes</td><td><strong>No</strong> — blocked by <code class="inline">ability:access</code></td></tr>
+  <tr><td><strong>Survives page reload?</strong></td><td>No</td><td>Yes (until it expires)</td></tr>
+  <tr><td><strong>On refresh</strong></td><td>A new one is issued</td><td>Rotated — old one is revoked (single-use)</td></tr>
+</table>
+
+<p class="muted">Lifetimes are configurable in <code class="inline">config/sanctum.php</code> via
+<code class="inline">access_token_expiration</code> / <code class="inline">refresh_token_expiration</code>
+(overridable with the <code class="inline">SANCTUM_ACCESS_TOKEN_EXPIRATION</code> and
+<code class="inline">SANCTUM_REFRESH_TOKEN_EXPIRATION</code> env vars).</p>
+
+<!-- ============================================================= -->
+<h2 class="section" id="endpoints">3. API endpoints</h2>
+<table>
+  <tr><th>Method &amp; path</th><th>Auth required</th><th>Request</th><th>Response</th></tr>
+  <tr>
+    <td><span class="pill post">POST</span> <code class="inline">/api/admin/login</code></td>
+    <td>None</td>
+    <td><code class="inline">{ email, password, device_name? }</code></td>
+    <td><code class="inline">data.access_token</code> + <code class="inline">data.admin</code><br>Set-Cookie: <code class="inline">refresh_token</code></td>
+  </tr>
+  <tr>
+    <td><span class="pill post">POST</span> <code class="inline">/api/admin/refresh</code></td>
+    <td>refresh cookie</td>
+    <td>—&nbsp;<span class="muted">(cookie sent automatically)</span></td>
+    <td><code class="inline">data.access_token</code> + <code class="inline">data.admin</code><br>Set-Cookie: <code class="inline">refresh_token</code> (rotated)</td>
+  </tr>
+  <tr>
+    <td><span class="pill post">POST</span> <code class="inline">/api/admin/logout</code></td>
+    <td>access token</td>
+    <td>—&nbsp;<span class="muted">(Bearer + cookie)</span></td>
+    <td>Revokes both tokens, clears the cookie</td>
+  </tr>
+  <tr>
+    <td><span class="pill get">GET</span> <code class="inline">/api/admin/profile</code> <span class="muted">(and all other admin routes)</span></td>
+    <td>access token</td>
+    <td>Authorization: Bearer &lt;access&gt;</td>
+    <td>The protected resource</td>
+  </tr>
+</table>
+
+<h4>Successful login / refresh body</h4>
+<pre><span class="c">// 200 OK</span>
+{
+  <span class="s">"success"</span>: <span class="k">true</span>,
+  <span class="s">"message"</span>: <span class="s">"Login successful."</span>,   <span class="c">// or "Token refreshed."</span>
+  <span class="s">"data"</span>: {
+    <span class="s">"access_token"</span>: <span class="s">"3|aBc...xyz"</span>,    <span class="c">// keep this in memory</span>
+    <span class="s">"admin"</span>: { <span class="s">"id"</span>: <span class="n">1</span>, <span class="s">"name"</span>: <span class="s">"…"</span>, <span class="s">"email"</span>: <span class="s">"…"</span>, <span class="s">"user_type"</span>: <span class="s">"admin"</span>, <span class="s">"status"</span>: <span class="s">"active"</span> }
+  }
+}
+<span class="c">// The refresh token is NOT in this body — it arrives only as an httpOnly Set-Cookie header.</span></pre>
+
+<div class="note">The shapes above describe the default <strong>web/browser</strong> mode. Native apps send
+<code class="inline">X-Client: mobile</code> on login and receive the refresh token in
+<code class="inline">data.refresh_token</code> instead of a cookie — see
+<a href="#dualmode">§13 Dual-mode</a> for the full mobile contract.</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="lifecycle">4. Token lifecycle</h2>
+<ol>
+  <li><strong>Login</strong> → store <code class="inline">access_token</code> in memory; the browser silently stores the refresh cookie.</li>
+  <li><strong>Authenticated calls</strong> → attach <code class="inline">Authorization: Bearer &lt;access&gt;</code>.</li>
+  <li><strong>Access token expires (after 10&nbsp;min)</strong> → next call returns <code class="inline">401</code>.</li>
+  <li><strong>Silent refresh</strong> → SPA calls <code class="inline">/refresh</code>; cookie goes automatically; gets a new access token and a rotated refresh cookie.</li>
+  <li><strong>Retry</strong> → the original failed request is replayed with the new access token. The user notices nothing.</li>
+  <li><strong>Refresh token expires (after 60&nbsp;min idle)</strong> → <code class="inline">/refresh</code> returns <code class="inline">401</code> → redirect to login.</li>
+  <li><strong>Logout</strong> → both tokens revoked, cookie cleared.</li>
+</ol>
+<div class="note"><strong>Sliding window:</strong> every successful <code class="inline">/refresh</code> issues a brand-new
+refresh token valid for another 60&nbsp;minutes. So an actively-used session never forces a re-login — only
+<em>60&nbsp;minutes of inactivity</em> does.</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="setup">5. React — axios instance</h2>
+<p>The single most important line is <code class="inline">withCredentials: true</code>. Without it the browser
+will <strong>not</strong> send (or store) the refresh cookie, and every refresh attempt fails.</p>
+
+<span class="filelabel">src/lib/api.js</span>
+<pre><span class="k">import</span> axios <span class="k">from</span> <span class="s">"axios"</span>;
+
+<span class="k">export const</span> <span class="f">api</span> = axios.<span class="f">create</span>({
+  baseURL: <span class="s">"/api"</span>,            <span class="c">// or "https://api.example.com/api"</span>
+  withCredentials: <span class="k">true</span>,      <span class="c">// REQUIRED — sends &amp; receives the httpOnly refresh cookie</span>
+  headers: { <span class="s">"Accept"</span>: <span class="s">"application/json"</span> },
+});</pre>
+
+<div class="warn"><strong>Cross-origin?</strong> If the SPA and API are on different origins, the API's CORS config must set
+<code class="inline">supports_credentials =&gt; true</code> and list the exact SPA origin (a wildcard
+<code class="inline">*</code> is not allowed together with credentials).</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="context">6. React — auth context (access token in memory)</h2>
+<p>We hold the access token in two places: React state (so components re-render on login/logout) and a plain
+module variable (so the axios interceptor can read the latest value synchronously without React).</p>
+
+<span class="filelabel">src/auth/token-store.js</span>
+<pre><span class="c">// A non-React holder so interceptors can read/write the token outside the React tree.</span>
+<span class="k">let</span> accessToken = <span class="k">null</span>;
+
+<span class="k">export const</span> <span class="f">getAccessToken</span> = () =&gt; accessToken;
+<span class="k">export const</span> <span class="f">setAccessToken</span> = (t) =&gt; { accessToken = t; };
+<span class="k">export const</span> <span class="f">clearAccessToken</span> = () =&gt; { accessToken = <span class="k">null</span>; };</pre>
+
+<span class="filelabel">src/auth/AuthContext.jsx</span>
+<pre><span class="k">import</span> { createContext, useContext, useEffect, useState, useCallback } <span class="k">from</span> <span class="s">"react"</span>;
+<span class="k">import</span> { api } <span class="k">from</span> <span class="s">"../lib/api"</span>;
+<span class="k">import</span> { setAccessToken, clearAccessToken } <span class="k">from</span> <span class="s">"./token-store"</span>;
+
+<span class="k">const</span> AuthContext = <span class="f">createContext</span>(<span class="k">null</span>);
+
+<span class="k">export function</span> <span class="f">AuthProvider</span>({ children }) {
+  <span class="k">const</span> [admin, setAdmin]       = <span class="f">useState</span>(<span class="k">null</span>);
+  <span class="k">const</span> [booting, setBooting]   = <span class="f">useState</span>(<span class="k">true</span>);  <span class="c">// true until the boot refresh resolves</span>
+
+  <span class="c">// Save the access token both in memory (for axios) and in state (for the UI).</span>
+  <span class="k">const</span> applySession = <span class="f">useCallback</span>((data) =&gt; {
+    <span class="f">setAccessToken</span>(data.access_token);
+    <span class="f">setAdmin</span>(data.admin);
+  }, []);
+
+  <span class="k">const</span> login = <span class="f">useCallback</span>(<span class="k">async</span> (email, password) =&gt; {
+    <span class="k">const</span> { data } = <span class="k">await</span> api.<span class="f">post</span>(<span class="s">"/admin/login"</span>, { email, password });
+    <span class="f">applySession</span>(data.data);
+    <span class="k">return</span> data.data.admin;
+  }, [applySession]);
+
+  <span class="k">const</span> logout = <span class="f">useCallback</span>(<span class="k">async</span> () =&gt; {
+    <span class="k">try</span> { <span class="k">await</span> api.<span class="f">post</span>(<span class="s">"/admin/logout"</span>); } <span class="k">catch</span> (_) { <span class="c">/* ignore */</span> }
+    <span class="f">clearAccessToken</span>();
+    <span class="f">setAdmin</span>(<span class="k">null</span>);
+  }, []);
+
+  <span class="c">// On first mount, try to restore the session from the refresh cookie.</span>
+  <span class="f">useEffect</span>(() =&gt; {
+    <span class="f">setBootRefreshHandlers</span>(applySession, () =&gt; setAdmin(<span class="k">null</span>));   <span class="c">// see interceptor file</span>
+    api.<span class="f">post</span>(<span class="s">"/admin/refresh"</span>)
+      .<span class="f">then</span>(({ data }) =&gt; applySession(data.data))
+      .<span class="f">catch</span>(() =&gt; { <span class="f">clearAccessToken</span>(); setAdmin(<span class="k">null</span>); })
+      .<span class="f">finally</span>(() =&gt; setBooting(<span class="k">false</span>));
+  }, [applySession]);
+
+  <span class="k">return</span> (
+    &lt;AuthContext.Provider value={{ admin, booting, login, logout, isAuthenticated: !!admin }}&gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+}
+
+<span class="k">export const</span> <span class="f">useAuth</span> = () =&gt; <span class="f">useContext</span>(AuthContext);</pre>
+
+<!-- ============================================================= -->
+<h2 class="section" id="login">7. React — login screen</h2>
+<span class="filelabel">src/pages/Login.jsx</span>
+<pre><span class="k">import</span> { useState } <span class="k">from</span> <span class="s">"react"</span>;
+<span class="k">import</span> { useAuth } <span class="k">from</span> <span class="s">"../auth/AuthContext"</span>;
+<span class="k">import</span> { useNavigate } <span class="k">from</span> <span class="s">"react-router-dom"</span>;
+
+<span class="k">export default function</span> <span class="f">Login</span>() {
+  <span class="k">const</span> { login } = <span class="f">useAuth</span>();
+  <span class="k">const</span> navigate = <span class="f">useNavigate</span>();
+  <span class="k">const</span> [form, setForm]   = <span class="f">useState</span>({ email: <span class="s">""</span>, password: <span class="s">""</span> });
+  <span class="k">const</span> [error, setError] = <span class="f">useState</span>(<span class="k">null</span>);
+  <span class="k">const</span> [busy, setBusy]   = <span class="f">useState</span>(<span class="k">false</span>);
+
+  <span class="k">const</span> onSubmit = <span class="k">async</span> (e) =&gt; {
+    e.<span class="f">preventDefault</span>();
+    <span class="f">setBusy</span>(<span class="k">true</span>); <span class="f">setError</span>(<span class="k">null</span>);
+    <span class="k">try</span> {
+      <span class="k">await</span> <span class="f">login</span>(form.email, form.password);
+      <span class="f">navigate</span>(<span class="s">"/dashboard"</span>);
+    } <span class="k">catch</span> (err) {
+      <span class="f">setError</span>(err?.response?.data?.message ?? <span class="s">"Login failed."</span>);
+    } <span class="k">finally</span> {
+      <span class="f">setBusy</span>(<span class="k">false</span>);
+    }
+  };
+
+  <span class="k">return</span> (
+    &lt;form onSubmit={onSubmit}&gt;
+      {error &amp;&amp; &lt;p className="error"&gt;{error}&lt;/p&gt;}
+      &lt;input type="email"    value={form.email}    onChange={e =&gt; setForm({ ...form, email: e.target.value })} /&gt;
+      &lt;input type="password" value={form.password} onChange={e =&gt; setForm({ ...form, password: e.target.value })} /&gt;
+      &lt;button disabled={busy}&gt;{busy ? "Signing in…" : "Sign in"}&lt;/button&gt;
+    &lt;/form&gt;
+  );
+}</pre>
+<div class="ok">Notice there is <strong>nothing</strong> about the refresh token here. You never touch it — the browser
+stores the <code class="inline">Set-Cookie</code> automatically, and only ever sends it back to
+<code class="inline">/api/admin/*</code>.</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="interceptor">8. React — silent refresh interceptor</h2>
+<p>This is the heart of the system. Two axios interceptors:</p>
+<ul class="tick">
+  <li><strong>Request interceptor</strong> — attaches the current in-memory access token to every outgoing call.</li>
+  <li><strong>Response interceptor</strong> — catches <code class="inline">401</code>, calls <code class="inline">/refresh</code> once, then replays the failed request. Concurrent 401s are queued so only <em>one</em> refresh happens.</li>
+</ul>
+
+<span class="filelabel">src/lib/interceptors.js</span>
+<pre><span class="k">import</span> { api } <span class="k">from</span> <span class="s">"./api"</span>;
+<span class="k">import</span> { getAccessToken, setAccessToken, clearAccessToken } <span class="k">from</span> <span class="s">"../auth/token-store"</span>;
+
+<span class="c">// Handlers wired up by AuthProvider so a successful boot/refresh updates React state too.</span>
+<span class="k">let</span> onRefreshed = () =&gt; {};
+<span class="k">let</span> onRefreshFailed = () =&gt; {};
+<span class="k">export function</span> <span class="f">setBootRefreshHandlers</span>(refreshed, failed) {
+  onRefreshed = refreshed; onRefreshFailed = failed;
+}
+
+<span class="c">// ---- Request: attach the access token ----</span>
+api.interceptors.request.<span class="f">use</span>((config) =&gt; {
+  <span class="k">const</span> token = <span class="f">getAccessToken</span>();
+  <span class="k">if</span> (token) config.headers.Authorization = <span class="s">`Bearer ${token}`</span>;
+  <span class="k">return</span> config;
+});
+
+<span class="c">// ---- Response: refresh-on-401, with a single-flight queue ----</span>
+<span class="k">let</span> isRefreshing = <span class="k">false</span>;
+<span class="k">let</span> queue = [];   <span class="c">// requests that arrived while a refresh was already in flight</span>
+
+<span class="k">const</span> <span class="f">flushQueue</span> = (error, token = <span class="k">null</span>) =&gt; {
+  queue.<span class="f">forEach</span>(({ resolve, reject }) =&gt; (error ? <span class="f">reject</span>(error) : <span class="f">resolve</span>(token)));
+  queue = [];
+};
+
+api.interceptors.response.<span class="f">use</span>(
+  (response) =&gt; response,
+  <span class="k">async</span> (error) =&gt; {
+    <span class="k">const</span> original = error.config;
+    <span class="k">const</span> status   = error.response?.status;
+
+    <span class="c">// Only handle a genuine 401, never retry the refresh call itself, retry each request once.</span>
+    <span class="k">const</span> isRefreshCall = original.url?.<span class="f">includes</span>(<span class="s">"/admin/refresh"</span>);
+    <span class="k">if</span> (status !== <span class="n">401</span> || original._retried || isRefreshCall) {
+      <span class="k">return</span> Promise.<span class="f">reject</span>(error);
+    }
+    original._retried = <span class="k">true</span>;
+
+    <span class="c">// If a refresh is already running, wait for it instead of starting another.</span>
+    <span class="k">if</span> (isRefreshing) {
+      <span class="k">return new</span> <span class="f">Promise</span>((resolve, reject) =&gt; queue.<span class="f">push</span>({ resolve, reject }))
+        .<span class="f">then</span>((token) =&gt; {
+          original.headers.Authorization = <span class="s">`Bearer ${token}`</span>;
+          <span class="k">return</span> api(original);
+        });
+    }
+
+    isRefreshing = <span class="k">true</span>;
+    <span class="k">try</span> {
+      <span class="k">const</span> { data } = <span class="k">await</span> api.<span class="f">post</span>(<span class="s">"/admin/refresh"</span>);   <span class="c">// cookie sent automatically</span>
+      <span class="k">const</span> newToken = data.data.access_token;
+      <span class="f">setAccessToken</span>(newToken);
+      <span class="f">onRefreshed</span>(data.data);                <span class="c">// keep React state in sync</span>
+      <span class="f">flushQueue</span>(<span class="k">null</span>, newToken);               <span class="c">// release queued requests</span>
+      original.headers.Authorization = <span class="s">`Bearer ${newToken}`</span>;
+      <span class="k">return</span> api(original);                    <span class="c">// replay the original request</span>
+    } <span class="k">catch</span> (refreshError) {
+      <span class="f">flushQueue</span>(refreshError, <span class="k">null</span>);
+      <span class="f">clearAccessToken</span>();
+      <span class="f">onRefreshFailed</span>();                       <span class="c">// e.g. clear admin -> route guard sends to /login</span>
+      <span class="k">return</span> Promise.<span class="f">reject</span>(refreshError);
+    } <span class="k">finally</span> {
+      isRefreshing = <span class="k">false</span>;
+    }
+  }
+);</pre>
+
+<p>Import this file once, early (e.g. in <code class="inline">main.jsx</code>) so the interceptors register before any request is made:</p>
+<span class="filelabel">src/main.jsx</span>
+<pre><span class="k">import</span> <span class="s">"./lib/interceptors"</span>;   <span class="c">// side-effect import — registers the interceptors</span>
+<span class="k">import</span> { AuthProvider } <span class="k">from</span> <span class="s">"./auth/AuthContext"</span>;
+<span class="c">// … render &lt;AuthProvider&gt;&lt;App /&gt;&lt;/AuthProvider&gt;</span></pre>
+
+<div class="note"><strong>Why the single-flight queue?</strong> If a page fires 5 requests at once and all get
+<code class="inline">401</code>, you don't want 5 parallel <code class="inline">/refresh</code> calls — the first rotates
+the cookie and the other four would fail with a now-revoked token. The queue makes exactly one refresh happen;
+the other four wait for its result and then replay.</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="bootstrap">9. React — restoring the session on reload</h2>
+<p>Because the access token lives only in memory, a page refresh wipes it. But the refresh cookie survives.
+So on app boot we make a single <code class="inline">/refresh</code> call (already wired in the
+<code class="inline">AuthProvider</code> <code class="inline">useEffect</code> above):</p>
+<ul class="tick">
+  <li><strong>Cookie still valid</strong> → we get a fresh access token, restore <code class="inline">admin</code>, user stays logged in.</li>
+  <li><strong>Cookie missing/expired</strong> → <code class="inline">/refresh</code> returns 401, we stay logged out and show the login screen.</li>
+</ul>
+<p>Render a splash/loader while <code class="inline">booting</code> is <code class="inline">true</code> so the app
+doesn't flash the login page before the boot refresh resolves:</p>
+<pre><span class="k">function</span> <span class="f">App</span>() {
+  <span class="k">const</span> { booting } = <span class="f">useAuth</span>();
+  <span class="k">if</span> (booting) <span class="k">return</span> &lt;FullScreenLoader /&gt;;   <span class="c">// avoids a login-page flash on reload</span>
+  <span class="k">return</span> &lt;Routes&gt;{<span class="c">/* … */</span>}&lt;/Routes&gt;;
+}</pre>
+
+<!-- ============================================================= -->
+<h2 class="section" id="logout">10. React — logout</h2>
+<pre><span class="k">const</span> { logout } = <span class="f">useAuth</span>();
+<span class="c">// …</span>
+&lt;button onClick={<span class="k">async</span> () =&gt; { <span class="k">await</span> logout(); navigate(<span class="s">"/login"</span>); }}&gt;Log out&lt;/button&gt;</pre>
+<p>The <code class="inline">/admin/logout</code> call revokes the current access token <em>and</em> the paired refresh
+token on the server, and the response clears the cookie. Locally we also drop the in-memory access token and
+the <code class="inline">admin</code> state.</p>
+
+<!-- ============================================================= -->
+<h2 class="section" id="routes">11. React — protected routes</h2>
+<span class="filelabel">src/auth/RequireAuth.jsx</span>
+<pre><span class="k">import</span> { Navigate, useLocation } <span class="k">from</span> <span class="s">"react-router-dom"</span>;
+<span class="k">import</span> { useAuth } <span class="k">from</span> <span class="s">"./AuthContext"</span>;
+
+<span class="k">export function</span> <span class="f">RequireAuth</span>({ children }) {
+  <span class="k">const</span> { isAuthenticated, booting } = <span class="f">useAuth</span>();
+  <span class="k">const</span> location = <span class="f">useLocation</span>();
+
+  <span class="k">if</span> (booting) <span class="k">return</span> &lt;FullScreenLoader /&gt;;
+  <span class="k">if</span> (!isAuthenticated) <span class="k">return</span> &lt;Navigate to="/login" state={{ from: location }} replace /&gt;;
+  <span class="k">return</span> children;
+}</pre>
+<pre><span class="c">// usage</span>
+&lt;Route path="/dashboard" element={&lt;RequireAuth&gt;&lt;Dashboard /&gt;&lt;/RequireAuth&gt;} /&gt;</pre>
+
+<!-- ============================================================= -->
+<h2 class="section" id="expiry">12. What happens when the access token expires</h2>
+<p>This is the exact step-by-step the interceptor performs — the user sees none of it:</p>
+<div class="seq">
+<pre>
+ 1.  Component calls   api.get("/admin/profile")
+ 2.  Request interceptor attaches  Authorization: Bearer &lt;expired access&gt;
+ 3.  API returns         401 Unauthorized        (token past its 10-min expiry)
+ 4.  Response interceptor sees 401, not yet retried, not the /refresh call
+ 5.  No refresh in flight -> set isRefreshing = true
+ 6.  Interceptor calls   POST /admin/refresh
+        • browser auto-attaches  Cookie: refresh_token=&lt;valid&gt;
+ 7.  API validates the refresh token, checks ability:refresh, not expired
+ 8.  API ROTATES: deletes the old refresh token, issues:
+        • new access  token (10 min)  -> JSON body
+        • new refresh token (60 min)  -> Set-Cookie (replaces the old cookie)
+ 9.  Interceptor stores new access token in memory, updates React state
+10.  Interceptor replays step 1 with  Authorization: Bearer &lt;new access&gt;
+11.  API returns         200 OK  + the profile data
+12.  The original api.get(...) promise resolves as if nothing happened
+</pre>
+</div>
+<p>If step 6 returns <code class="inline">401</code> instead (refresh token expired after 60&nbsp;min idle, or it was
+revoked), the interceptor clears local auth state and the route guard redirects to <code class="inline">/login</code>.</p>
+
+<!-- ============================================================= -->
+<h2 class="section" id="dualmode">13. Dual-mode: web vs native apps</h2>
+<p>An <code class="inline">httpOnly</code> cookie is a <strong>browser</strong> mechanism — a native Android/iOS app
+has no cookie jar and no <code class="inline">document.cookie</code>, so the cookie transport doesn't apply. The
+same API therefore runs in <strong>two modes</strong>. Everything server-side is identical (same tokens, same
+<code class="inline">refresh</code>/<code class="inline">access</code> abilities, same single-use rotation, same
+sliding 60-minute window) — only the <em>carrier</em> of the refresh token changes.</p>
+
+<table>
+  <tr><th>&nbsp;</th><th>Web (browser)</th><th>Native app (Android / iOS)</th></tr>
+  <tr><td><strong>Login header</strong></td><td>—</td><td><code class="inline">X-Client: mobile</code></td></tr>
+  <tr><td><strong>Refresh token delivered in</strong></td><td><code class="inline">Set-Cookie</code> (httpOnly)</td><td>JSON body <code class="inline">data.refresh_token</code></td></tr>
+  <tr><td><strong>App stores it in</strong></td><td>browser cookie jar (automatic)</td><td>Keychain (iOS) / Keystore (Android)</td></tr>
+  <tr><td><strong>Sent on refresh / logout via</strong></td><td>cookie (automatic)</td><td><code class="inline">X-Refresh-Token</code> header</td></tr>
+  <tr><td><strong>Refresh response</strong></td><td>new <code class="inline">Set-Cookie</code></td><td>new <code class="inline">data.refresh_token</code></td></tr>
+  <tr><td><strong>Access token</strong></td><td colspan="2" style="text-align:center">identical — JSON body → in-memory variable, sent as <code class="inline">Authorization: Bearer</code></td></tr>
+</table>
+
+<div class="note"><strong>How the server picks the mode.</strong> On <code class="inline">login</code> the client opts in
+with the <code class="inline">X-Client: mobile</code> header. On <code class="inline">refresh</code> the server simply
+mirrors the transport it received: a refresh token arriving in a <em>cookie</em> gets a cookie back; one arriving
+in the <code class="inline">X-Refresh-Token</code> header (or request body) gets the new token back in the JSON body.
+So a mobile client doesn't even need <code class="inline">X-Client</code> on refresh — using the header is enough.</div>
+
+<h4>Mobile request/response shapes</h4>
+<pre><span class="c">// Login — mobile opts in via header</span>
+POST /api/admin/login
+X-Client: mobile
+{ <span class="s">"email"</span>: <span class="s">"…"</span>, <span class="s">"password"</span>: <span class="s">"…"</span>, <span class="s">"device_name"</span>: <span class="s">"Pixel 8 / iOS 18"</span> }
+
+<span class="c">// 200 — BOTH tokens in the body, no Set-Cookie</span>
+{ <span class="s">"data"</span>: { <span class="s">"access_token"</span>: <span class="s">"…"</span>, <span class="s">"refresh_token"</span>: <span class="s">"…"</span>, <span class="s">"admin"</span>: { … } } }
+
+<span class="c">// Refresh — present the stored refresh token in a header</span>
+POST /api/admin/refresh
+X-Refresh-Token: &lt;refresh token from Keychain/Keystore&gt;
+
+<span class="c">// 200 — NEW pair in the body (old refresh token is now revoked)</span>
+{ <span class="s">"data"</span>: { <span class="s">"access_token"</span>: <span class="s">"…(new)"</span>, <span class="s">"refresh_token"</span>: <span class="s">"…(new)"</span>, <span class="s">"admin"</span>: { … } } }
+
+<span class="c">// Logout — send both so the server revokes the pair</span>
+POST /api/admin/logout
+Authorization: Bearer &lt;access token&gt;
+X-Refresh-Token: &lt;refresh token&gt;</pre>
+
+<div class="warn"><strong>The #1 mobile bug:</strong> rotation means every successful <code class="inline">/refresh</code>
+returns a <em>new</em> refresh token and <strong>revokes the old one</strong>. The app must persist the new token
+to secure storage <em>immediately</em>, overwriting the old value. Miss this and the next refresh fails with 401.</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="mobile-storage">14. Mobile — where to store the token</h2>
+<p>The access token is just an in-memory variable (lost on app kill — you re-acquire it on next launch via
+refresh). The <strong>refresh token must go in platform secure storage</strong>, never in plain
+<code class="inline">SharedPreferences</code>, <code class="inline">UserDefaults</code>, or a file.</p>
+<table>
+  <tr><th>Platform</th><th>Store the refresh token in</th><th>Backed by</th></tr>
+  <tr><td>Android (native)</td><td><code class="inline">EncryptedSharedPreferences</code> (Jetpack Security) or DataStore</td><td>Android Keystore (hardware-backed)</td></tr>
+  <tr><td>iOS (native)</td><td>Keychain — <code class="inline">kSecClassGenericPassword</code>, accessibility <code class="inline">WhenUnlockedThisDeviceOnly</code></td><td>Secure Enclave / Keychain</td></tr>
+  <tr><td>Flutter</td><td><code class="inline">flutter_secure_storage</code></td><td>Keystore / Keychain</td></tr>
+  <tr><td>React Native</td><td><code class="inline">react-native-keychain</code> or Expo <code class="inline">SecureStore</code></td><td>Keystore / Keychain</td></tr>
+</table>
+<div class="danger">On mobile, <code class="inline">httpOnly</code> gives you nothing (there's no JS to defend against),
+so the protection comes entirely from <strong>secure storage + short access-token lifetime + rotation</strong>.
+Storing the refresh token in plain prefs/files is the mobile equivalent of putting a web token in
+<code class="inline">localStorage</code>.</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="mobile-code">15. Mobile — login &amp; refresh (Kotlin / Swift)</h2>
+<p>The logic mirrors the web interceptor: attach the access token, catch <code class="inline">401</code>, refresh
+once (single-flight), overwrite the stored tokens, retry.</p>
+
+<h4>Android — OkHttp <code class="inline">Authenticator</code> (auto-fires on 401)</h4>
+<span class="filelabel">TokenAuthenticator.kt</span>
+<pre><span class="k">class</span> <span class="f">TokenAuthenticator</span>(
+    <span class="k">private val</span> store: SecureTokenStore,   <span class="c">// wraps EncryptedSharedPreferences / Keystore</span>
+    <span class="k">private val</span> api: AuthApi,
+) : Authenticator {
+
+    <span class="k">override fun</span> <span class="f">authenticate</span>(route: Route?, response: Response): Request? {
+        <span class="k">synchronized</span>(<span class="k">this</span>) {                       <span class="c">// single-flight: one refresh at a time</span>
+            <span class="k">val</span> current = store.accessToken
+            <span class="c">// Another thread may have already refreshed while we waited on the lock.</span>
+            <span class="k">if</span> (response.request.header(<span class="s">"Authorization"</span>) != <span class="s">"Bearer $current"</span>) {
+                <span class="k">return</span> response.request.newBuilder()
+                    .header(<span class="s">"Authorization"</span>, <span class="s">"Bearer $current"</span>).build()
+            }
+            <span class="k">val</span> refreshed = <span class="k">try</span> {
+                api.refresh(store.refreshToken)         <span class="c">// sends X-Refresh-Token</span>
+            } <span class="k">catch</span> (e: Exception) { <span class="k">null</span> } ?: <span class="k">run</span> {
+                store.clear(); <span class="k">return</span> <span class="k">null</span>             <span class="c">// refresh failed -> give up -> route to login</span>
+            }
+            store.accessToken  = refreshed.accessToken
+            store.refreshToken = refreshed.refreshToken <span class="c">// ROTATION: overwrite immediately</span>
+            <span class="k">return</span> response.request.newBuilder()
+                .header(<span class="s">"Authorization"</span>, <span class="s">"Bearer ${refreshed.accessToken}"</span>).build()
+        }
+    }
+}
+
+<span class="c">// Retrofit interface — note the header carries the stored refresh token.</span>
+<span class="k">interface</span> AuthApi {
+    <span class="nd">@Headers</span>(<span class="s">"X-Client: mobile"</span>)
+    <span class="nd">@POST</span>(<span class="s">"admin/login"</span>)
+    <span class="k">suspend fun</span> <span class="f">login</span>(<span class="nd">@Body</span> body: LoginBody): TokenPair
+
+    <span class="nd">@POST</span>(<span class="s">"admin/refresh"</span>)
+    <span class="k">fun</span> <span class="f">refresh</span>(<span class="nd">@Header</span>(<span class="s">"X-Refresh-Token"</span>) refreshToken: String): TokenPair
+}</pre>
+<p class="muted">Wire it up with <code class="inline">OkHttpClient.Builder().authenticator(tokenAuthenticator)</code>
+plus a request interceptor that adds <code class="inline">Authorization: Bearer &lt;access&gt;</code> to every call.</p>
+
+<h4>iOS — URLSession retry wrapper</h4>
+<span class="filelabel">AuthClient.swift</span>
+<pre><span class="k">func</span> <span class="f">authedRequest</span>(_ build: () -&gt; URLRequest) <span class="k">async throws</span> -&gt; Data {
+    <span class="k">var</span> req = build()
+    req.setValue(<span class="s">"Bearer \(store.accessToken)"</span>, forHTTPHeaderField: <span class="s">"Authorization"</span>)
+    <span class="k">var</span> (data, resp) = <span class="k">try await</span> URLSession.shared.data(for: req)
+
+    <span class="k">if</span> (resp <span class="k">as</span>? HTTPURLResponse)?.statusCode == <span class="n">401</span> {
+        <span class="k">try await</span> refreshOnce()                         <span class="c">// actor-guarded single-flight</span>
+        req.setValue(<span class="s">"Bearer \(store.accessToken)"</span>, forHTTPHeaderField: <span class="s">"Authorization"</span>)
+        (data, resp) = <span class="k">try await</span> URLSession.shared.data(for: req)  <span class="c">// retry once</span>
+    }
+    <span class="k">return</span> data
+}
+
+<span class="k">func</span> <span class="f">refreshOnce</span>() <span class="k">async throws</span> {
+    <span class="k">var</span> r = URLRequest(url: api(<span class="s">"/admin/refresh"</span>))
+    r.httpMethod = <span class="s">"POST"</span>
+    r.setValue(store.refreshToken, forHTTPHeaderField: <span class="s">"X-Refresh-Token"</span>)   <span class="c">// from Keychain</span>
+    <span class="k">let</span> (data, resp) = <span class="k">try await</span> URLSession.shared.data(for: r)
+    <span class="k">guard</span> (resp <span class="k">as</span>? HTTPURLResponse)?.statusCode == <span class="n">200</span> <span class="k">else</span> {
+        store.clear(); <span class="k">throw</span> AuthError.sessionExpired        <span class="c">// -> show login</span>
+    }
+    <span class="k">let</span> pair = <span class="k">try</span> JSONDecoder().decode(TokenEnvelope.self, from: data).data
+    store.accessToken  = pair.accessToken
+    store.refreshToken = pair.refreshToken                      <span class="c">// ROTATION: overwrite in Keychain</span>
+}</pre>
+
+<div class="note"><strong>Tip — longer lifetime for mobile.</strong> A 60-minute refresh window means a phone forces
+re-login after an hour idle, which is poor UX. Apps commonly use multi-day/30-day refresh tokens. You can vary the
+expiry by client type inside <code class="inline">AdminAuthService::issueTokenPair()</code> (e.g. read the
+<code class="inline">X-Client</code> header and pick a longer TTL) without touching anything else.</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="security">16. Security notes</h2>
+<table>
+  <tr><th>Threat</th><th>Mitigation in this design</th></tr>
+  <tr><td>XSS stealing a long-lived token</td><td>Refresh token is <code class="inline">httpOnly</code> — unreadable by JS. Access token is short-lived (10&nbsp;min) and memory-only.</td></tr>
+  <tr><td>Refresh token replay / theft</td><td>Single-use rotation — each <code class="inline">/refresh</code> revokes the presented token. A stolen-and-replayed token is already dead.</td></tr>
+  <tr><td>CSRF on the cookie-based refresh</td><td><code class="inline">SameSite=Strict</code> + cookie path scoped to <code class="inline">/api/admin</code>. The cookie isn't sent on cross-site requests.</td></tr>
+  <tr><td>Refresh token used to call business APIs</td><td><code class="inline">ability:access</code> middleware — the refresh token only holds the <code class="inline">refresh</code> ability, so it's rejected (403) everywhere except <code class="inline">/refresh</code>.</td></tr>
+  <tr><td>Token interception over the wire</td><td><code class="inline">Secure</code> flag — cookie only sent over HTTPS in production.</td></tr>
+  <tr><td>Brute-forcing the refresh endpoint</td><td><code class="inline">throttle:admin-refresh</code> (20/min per IP).</td></tr>
+  <tr><td>Native app token theft (no httpOnly)</td><td>Refresh token in OS secure storage (Keychain / Keystore), short-lived access token, single-use rotation — the same protections, minus the browser-only cookie.</td></tr>
+</table>
+<div class="danger"><strong>Never</strong> put either token in <code class="inline">localStorage</code> or
+<code class="inline">sessionStorage</code>, and never return the refresh token in a JSON body. Both undo the XSS
+protection that the whole design exists to provide.</div>
+
+<!-- ============================================================= -->
+<h2 class="section" id="env">17. Environment &amp; production</h2>
+<h4>Backend <code class="inline">.env</code></h4>
+<pre>SANCTUM_ACCESS_TOKEN_EXPIRATION=10     <span class="c"># minutes (default 10)</span>
+SANCTUM_REFRESH_TOKEN_EXPIRATION=60    <span class="c"># minutes (default 60)</span></pre>
+
+<h4>Prune expired tokens</h4>
+<p>Schedule Sanctum's pruning command so revoked/expired rows don't pile up
+(<code class="inline">routes/console.php</code>):</p>
+<pre><span class="k">use</span> Illuminate\Support\Facades\Schedule;
+Schedule::<span class="f">command</span>(<span class="s">'sanctum:prune-expired --hours=24'</span>)-&gt;<span class="f">daily</span>();</pre>
+
+<h4>Same-site vs cross-site cookies</h4>
+<ul class="tick">
+  <li><strong>Same registrable domain</strong> (e.g. <code class="inline">admin.example.com</code> ↔ <code class="inline">api.example.com</code>, or <code class="inline">localhost:3000</code> ↔ <code class="inline">localhost:8000</code>) → <code class="inline">SameSite=Strict</code> works as-is. <span class="muted">Ports don't affect same-site.</span></li>
+</ul>
+<ul class="cross" style="list-style:none;padding-left:0">
+  <li style="padding-left:26px;position:relative;margin:7px 0"><span style="position:absolute;left:0;color:var(--danger);font-weight:700">✕</span> <strong>Truly different domains</strong> → the <code class="inline">Strict</code> cookie won't be sent. You'd switch the cookie to <code class="inline">SameSite=None; Secure</code> and add explicit CSRF protection on <code class="inline">/refresh</code> and <code class="inline">/logout</code>.</li>
+</ul>
+
+<!-- ============================================================= -->
+<h2 class="section" id="faq">18. FAQ / troubleshooting</h2>
+
+<h4>The refresh cookie is never sent — every <code class="inline">/refresh</code> returns 401.</h4>
+<p>You forgot <code class="inline">withCredentials: true</code> on the axios instance, or the API's CORS config
+doesn't have <code class="inline">supports_credentials =&gt; true</code> with your exact SPA origin listed.</p>
+
+<h4>Login works but the user is logged out on every page reload.</h4>
+<p>The boot <code class="inline">/refresh</code> call isn't firing or the cookie isn't being stored. Check the
+Network tab: the login response should include a <code class="inline">Set-Cookie: refresh_token=…; HttpOnly</code>
+header, and the boot <code class="inline">/refresh</code> request should carry it back.</p>
+
+<h4>I can't see the refresh token in <code class="inline">document.cookie</code>.</h4>
+<p>Correct — that's the point. <code class="inline">httpOnly</code> cookies are invisible to JavaScript. Inspect it
+under DevTools → Application → Cookies instead.</p>
+
+<h4>After logging in, calls work for 10&nbsp;minutes then a request hangs/duplicates.</h4>
+<p>Make sure the interceptor's single-flight queue is in place (section 8). Parallel 401s without it trigger
+multiple refreshes, and the rotation makes all but the first fail.</p>
+
+<h4>Why is <code class="inline">device_name</code> optional?</h4>
+<p>It's a human-readable label for the token (e.g. "Chrome on macOS"), useful if you later build a
+"signed-in devices" screen. Omit it and it defaults to <code class="inline">admin</code>.</p>
+
+<h4>(Mobile) The app logs out after the first refresh.</h4>
+<p>You're not persisting the rotated token. Each <code class="inline">/refresh</code> returns a <em>new</em>
+<code class="inline">refresh_token</code> and revokes the old one — the app must overwrite the stored value in
+Keychain/Keystore right away. Reusing the old token gives a 401. See <a href="#dualmode">§13</a>.</p>
+
+<h4>(Mobile) Login returns no <code class="inline">refresh_token</code> in the body.</h4>
+<p>You didn't send the <code class="inline">X-Client: mobile</code> header, so the server used browser mode and
+issued a cookie instead. Add the header to the login request.</p>
+
+<footer>
+  <p>Backend: Laravel 13 · Sanctum 4 · PHP 8.4 — endpoints under <code class="inline">/api/admin</code>.
+  Access token 10&nbsp;min (ability <code class="inline">access</code>), refresh token 60&nbsp;min sliding
+  (ability <code class="inline">refresh</code>, rotated on use). <strong>Dual-mode:</strong> web → httpOnly cookie;
+  native app → <code class="inline">X-Client</code>/<code class="inline">X-Refresh-Token</code> + JSON body.</p>
+  <p class="muted">Generated for the mithun_start_kit admin authentication module.</p>
+</footer>
+
+</div>
+</body>
+</html>

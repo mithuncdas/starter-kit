@@ -54,6 +54,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Access & Refresh Token Expiration Minutes
+    |--------------------------------------------------------------------------
+    |
+    | The admin auth flow issues two tokens per login: a short-lived access
+    | token (sent to the SPA and held in memory) and a longer-lived refresh
+    | token (stored in an httpOnly cookie). These values, in minutes, control
+    | each token's lifetime. The global "expiration" above still acts as an
+    | upper cap, so both must remain below it.
+    |
+    */
+
+    'access_token_expiration' => (int) env('SANCTUM_ACCESS_TOKEN_EXPIRATION', 10),
+
+    'refresh_token_expiration' => (int) env('SANCTUM_REFRESH_TOKEN_EXPIRATION', 60),
+
+    /*
+    |--------------------------------------------------------------------------
     | Token Prefix
     |--------------------------------------------------------------------------
     |

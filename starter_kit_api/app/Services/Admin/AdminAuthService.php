@@ -15,6 +15,19 @@ use Laravel\Sanctum\PersonalAccessToken;
 class AdminAuthService
 {
     /**
+     * Ability granted to short-lived access tokens. Required by the protected
+     * admin routes; refresh tokens deliberately lack it so they cannot be used
+     * to call business endpoints.
+     */
+    public const ACCESS_ABILITY = 'access';
+
+    /**
+     * Ability granted to longer-lived refresh tokens. Only the refresh endpoint
+     * accepts it; it exchanges the refresh token for a fresh token pair.
+     */
+    public const REFRESH_ABILITY = 'refresh';
+
+    /**
      * Process-lifetime cache of a bcrypt hash used to equalize login timing when
      * the email doesn't resolve to a user. Computed once via Hash::make so its
      * work factor matches whatever the app's bcrypt rounds config is.
@@ -22,7 +35,7 @@ class AdminAuthService
     private static ?string $dummyHash = null;
 
     /**
-     * @return array{token: string, user: User}
+     * @return array{access_token: string, refresh_token: string, user: User}
      *
      * @throws InvalidCredentialsException
      * @throws AccountDeactivatedException
@@ -49,7 +62,7 @@ class AdminAuthService
             );
         }
 
-        $token = $user->createToken($deviceName ?: 'admin')->plainTextToken;
+        $tokens = $this->issueTokenPair($user, $deviceName);
 
         $user->load(['roles.permissions', 'permissions']);
 
@@ -63,13 +76,70 @@ class AdminAuthService
             ->tags(['auth'])
             ->commit();
 
-        return ['token' => $token, 'user' => $user];
+        return [...$tokens, 'user' => $user];
     }
 
-    public function logout(User $user, PersonalAccessToken $token): void
+    /**
+     * Exchange a valid refresh token for a brand-new access/refresh token pair.
+     * The presented refresh token is revoked (rotation) and its expiry slides
+     * forward, so an actively used session never has to fully re-authenticate.
+     *
+     * @return array{access_token: string, refresh_token: string, user: User}
+     *
+     * @throws InvalidCredentialsException
+     * @throws AccountDeactivatedException
+     */
+    public function refresh(?string $refreshPlainText): array
+    {
+        $token = $refreshPlainText ? PersonalAccessToken::findToken($refreshPlainText) : null;
+
+        if (! $token
+            || ! $token->can(self::REFRESH_ABILITY)
+            || ($token->expires_at && $token->expires_at->isPast())) {
+            throw new InvalidCredentialsException('Invalid or expired refresh token.');
+        }
+
+        /** @var User $user */
+        $user = $token->tokenable;
+
+        if (! $user->isActive()) {
+            throw new AccountDeactivatedException(
+                'Account is deactivated, please contact administrator.'
+            );
+        }
+
+        // Rotate: the presented refresh token can only ever be used once.
+        $deviceName = $token->name;
+        $token->delete();
+
+        $tokens = $this->issueTokenPair($user, $deviceName);
+
+        $user->load(['roles.permissions', 'permissions']);
+
+        Chronicle::record()
+            ->actor($user)
+            ->action('auth.token_refreshed')
+            ->subject($user)
+            ->metadata(['device_name' => $deviceName])
+            ->tags(['auth'])
+            ->commit();
+
+        return [...$tokens, 'user' => $user];
+    }
+
+    /**
+     * Revoke the current access token and, when provided, the paired refresh
+     * token from the request cookie — logging out just this session.
+     */
+    public function logout(User $user, PersonalAccessToken $token, ?string $refreshPlainText = null): void
     {
         $tokenId = $token->getKey();
         $token->delete();
+
+        $refreshToken = $refreshPlainText ? PersonalAccessToken::findToken($refreshPlainText) : null;
+        if ($refreshToken && $refreshToken->tokenable_id === $user->getKey()) {
+            $refreshToken->delete();
+        }
 
         Chronicle::record()
             ->actor($user)
@@ -78,6 +148,31 @@ class AdminAuthService
             ->metadata(['token_id' => $tokenId])
             ->tags(['auth'])
             ->commit();
+    }
+
+    /**
+     * Issue a short-lived access token and a longer-lived refresh token, each
+     * with its own ability and expiry drawn from the sanctum config.
+     *
+     * @return array{access_token: string, refresh_token: string}
+     */
+    private function issueTokenPair(User $user, ?string $deviceName): array
+    {
+        $name = $deviceName ?: 'admin';
+
+        $accessToken = $user->createToken(
+            $name,
+            [self::ACCESS_ABILITY],
+            now()->addMinutes((int) config('sanctum.access_token_expiration')),
+        )->plainTextToken;
+
+        $refreshToken = $user->createToken(
+            $name,
+            [self::REFRESH_ABILITY],
+            now()->addMinutes((int) config('sanctum.refresh_token_expiration')),
+        )->plainTextToken;
+
+        return ['access_token' => $accessToken, 'refresh_token' => $refreshToken];
     }
 
     /**

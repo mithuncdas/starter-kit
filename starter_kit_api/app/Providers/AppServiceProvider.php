@@ -51,6 +51,10 @@ class AppServiceProvider extends ServiceProvider
             );
         });
 
+        RateLimiter::for('admin-refresh', function (Request $request): Limit {
+            return Limit::perMinute(20)->by($request->ip());
+        });
+
         RateLimiter::for('admin-forgot', function (Request $request): Limit {
             return Limit::perMinute(3)->by(
                 $request->ip().'|'.(string) $request->input('email')

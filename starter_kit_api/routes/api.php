@@ -15,12 +15,19 @@ Route::prefix('admin')->group(function (): void {
     Route::post('login', [AuthController::class, 'login'])
         ->middleware('throttle:admin-login');
 
+    // Public: the refresh token is read from an httpOnly cookie, not the
+    // Authorization header, so this route cannot sit behind auth:sanctum.
+    Route::post('refresh', [AuthController::class, 'refresh'])
+        ->middleware('throttle:admin-refresh');
+
     Route::controller(PasswordController::class)->group(function (): void {
         Route::post('forgot-password', 'forgot')->middleware('throttle:admin-forgot');
         Route::post('reset-password', 'reset')->middleware('throttle:admin-reset');
     });
 
-    Route::middleware(['auth:sanctum', 'admin'])->group(function (): void {
+    // ability:access keeps refresh tokens (which only hold the "refresh"
+    // ability) out of every business endpoint — they may only hit /refresh.
+    Route::middleware(['auth:sanctum', 'ability:access', 'admin'])->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('change-password', [PasswordController::class, 'change']);
 
