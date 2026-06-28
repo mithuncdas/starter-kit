@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Logging with Chronicle — Implementation Plan</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #111827;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #fbbf24;
+    --ok: #4ade80;
+    --warn: #f97316;
+    --danger: #f87171;
+    --border: #334155;
+    --code-bg: #0b1220;
+    --code-text: #d1d5db;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px 96px; }
+  header { border-bottom: 2px solid var(--border); padding-bottom: 24px; margin-bottom: 32px; }
+  header h1 { margin: 0 0 8px; font-size: 32px; color: #fff; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .badge { display: inline-block; padding: 4px 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; font-size: 12px; color: var(--muted); }
+  .badge.accent { color: var(--accent); border-color: var(--accent); }
+  .badge.ok { color: var(--ok); border-color: var(--ok); }
+  .badge.warn { color: var(--warn); border-color: var(--warn); }
+  nav.toc { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  nav.toc h3 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  h2 { color: #fff; margin-top: 48px; padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 24px; }
+  h3 { color: var(--accent-2); margin-top: 32px; font-size: 18px; }
+  h4 { color: var(--accent); margin-top: 24px; margin-bottom: 8px; font-size: 15px; }
+  p { color: var(--text); }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: var(--accent-2); }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 13px; line-height: 1.5; color: var(--code-text); font-family: "SF Mono", Menlo, Consolas, monospace; }
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  .filepath { display: inline-block; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; background: var(--panel-2); color: var(--accent); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; background: var(--panel); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .callout { border-left: 4px solid var(--accent); background: rgba(56, 189, 248, 0.08); padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+  .callout.warn { border-color: var(--warn); background: rgba(249, 115, 22, 0.08); }
+  .callout.ok { border-color: var(--ok); background: rgba(74, 222, 128, 0.08); }
+  .callout.danger { border-color: var(--danger); background: rgba(248, 113, 113, 0.08); }
+  .callout strong { color: #fff; }
+  .ascii-tree { background: var(--code-bg); padding: 16px 20px; border-radius: 8px; border: 1px solid var(--border); color: var(--code-text); font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre; overflow-x: auto; }
+  .step { display: flex; gap: 16px; align-items: flex-start; margin: 16px 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  .step-num { flex: 0 0 32px; height: 32px; background: var(--accent); color: var(--bg); font-weight: 700; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 14px; }
+  .step-body { flex: 1; }
+  .step-body h4 { margin-top: 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; text-align: center; }
+  @media (max-width: 720px) { nav.toc ol { columns: 1; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Audit Logging with Chronicle — Implementation Plan</h1>
+  <div class="sub">Wire <code>laravel-chronicle/core</code> into every feature so every data change &mdash; auth, admin users, roles, addresses, profile, OTP &mdash; produces a tamper-evident, queryable audit entry tagged with actor, action, subject, and a structured diff.</div>
+  <div class="meta">
+    <span class="badge accent">Laravel 13</span>
+    <span class="badge accent">PHP 8.4</span>
+    <span class="badge accent">laravel-chronicle/core</span>
+    <span class="badge ok">Hash-chained ledger</span>
+    <span class="badge warn">Compliance-ready</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#why">Why Chronicle (not <code>spatie/activitylog</code>)</a></li>
+    <li><a href="#what">What Chronicle Gives Us</a></li>
+    <li><a href="#current">Current System &mdash; What Needs Auditing</a></li>
+    <li><a href="#strategy">Recording Strategy (Trait vs Service vs Manual)</a></li>
+    <li><a href="#install">Installation &amp; Configuration</a></li>
+    <li><a href="#schema">Schema &amp; Storage</a></li>
+    <li><a href="#actions">Action Naming Convention</a></li>
+    <li><a href="#features">Per-Feature Audit Map</a></li>
+    <li><a href="#sensitive">Sensitive Field Handling</a></li>
+    <li><a href="#context">Actor, Context &amp; Correlation</a></li>
+    <li><a href="#queue">Queueing &amp; Performance</a></li>
+    <li><a href="#api">Read API &amp; Filtering</a></li>
+    <li><a href="#access">Permissions &amp; UI Access</a></li>
+    <li><a href="#retention">Retention, Export &amp; Verification</a></li>
+    <li><a href="#tests">Tests</a></li>
+    <li><a href="#steps">Step-by-Step Implementation Order</a></li>
+    <li><a href="#risks">Risks &amp; Open Questions</a></li>
+  </ol>
+</nav>
+
+<!-- ================= WHY ================= -->
+<h2 id="why">1. Why Chronicle (not <code>spatie/activitylog</code>)</h2>
+
+<p>The differences boil down to three things this project actually cares about:</p>
+
+<table>
+  <thead>
+    <tr><th>Concern</th><th>spatie/activitylog</th><th>laravel-chronicle/core</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Tamper detection</td><td>None &mdash; rows are mutable.</td><td>Append-only ledger; each row holds <code>chain_hash = SHA256(prev_chain_hash + payload_hash)</code>. Any retroactive edit breaks the chain.</td></tr>
+    <tr><td>Cryptographic signing</td><td>None.</td><td>Ed25519 signatures on checkpoints. Exports are signed and re-verifiable.</td></tr>
+    <tr><td>Export for compliance / forensics</td><td>DIY.</td><td><code>php artisan chronicle:export</code> emits <code>entries.ndjson</code> + <code>manifest.json</code> + <code>signature.json</code> that any third party can verify via <code>chronicle:verify-export</code>.</td></tr>
+    <tr><td>API ergonomics</td><td><code>activity()-&gt;performedOn(...)-&gt;causedBy(...)</code></td><td><code>Chronicle::record()-&gt;actor(...)-&gt;action(...)-&gt;subject(...)-&gt;metadata(...)-&gt;commit()</code></td></tr>
+    <tr><td>Eloquent auto-recording</td><td><code>LogsActivity</code> trait</td><td><code>HasChronicle</code> trait (created/updated/deleted with diff)</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>Bottom line:</strong> if &ldquo;could the DB admin quietly fix a row last week&rdquo; is a question someone might ever ask, you want a hash-chained ledger, not a regular log table. Chronicle costs the same to set up; the integrity guarantees come free.
+</div>
+
+<!-- ================= WHAT ================= -->
+<h2 id="what">2. What Chronicle Gives Us</h2>
+
+<ul>
+  <li><strong>Append-only <code>chronicle_entries</code> table</strong> with ULID PKs, <code>actor_type/id</code>, <code>action</code>, <code>subject_type/id</code>, <code>payload</code>, <code>payload_hash</code>, <code>chain_hash</code>, <code>checkpoint_id</code>, <code>metadata</code>, <code>tags</code>, <code>correlation_id</code>, <code>diff</code>, <code>context</code>, <code>created_at</code>.</li>
+  <li><strong>Sibling <code>chronicle_checkpoints</code> table</strong> that periodically anchors the chain head with a signature.</li>
+  <li><strong><code>HasChronicle</code> trait</strong> — drop on a model and <code>created / updated / deleted</code> events auto-record with a diff (timestamps automatically ignored).</li>
+  <li><strong><code>Chronicle::record()</code> facade</strong> — fluent builder for any custom event that doesn&rsquo;t map cleanly to Eloquent (logins, OTP issued/verified, password reset, role sync, etc.).</li>
+  <li><strong>Drivers:</strong> <code>eloquent</code> (default, synchronous), <code>queued</code> (async on a dedicated single-worker queue), <code>array</code> (tests), <code>null</code> (kill-switch).</li>
+  <li><strong>Artisan:</strong> <code>chronicle:install</code>, <code>chronicle:export</code>, <code>chronicle:verify-export</code>.</li>
+  <li><strong>Optional read-only Blade UI</strong> gated by <code>CHRONICLE_UI_ENABLED=true</code> &mdash; not used here; we&rsquo;ll surface logs through the existing API.</li>
+</ul>
+
+<!-- ================= CURRENT ================= -->
+<h2 id="current">3. Current System &mdash; What Needs Auditing</h2>
+
+<p>Inventory of every controller / service that mutates state today:</p>
+
+<table>
+  <thead>
+    <tr><th>Area</th><th>Mutation surface</th><th>Today&rsquo;s entry point</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Authentication</td><td>Login (success / fail), logout, account lock on token revoke</td><td><code>AuthController</code> + <code>AdminAuthService</code></td></tr>
+    <tr><td>Password</td><td>Forgot-password OTP issued, reset completed, change-password</td><td><code>PasswordController</code> + <code>AdminAuthService</code></td></tr>
+    <tr><td>OTP</td><td>OTP issued, OTP verified, OTP failed attempt, OTP exhausted</td><td><code>OtpService</code></td></tr>
+    <tr><td>Profile</td><td>Profile shown, profile updated</td><td><code>ProfileController</code> + <code>AdminAuthService::updateProfile</code></td></tr>
+    <tr><td>Admin users (CRUD)</td><td>Create / update (name, email, status, password, role) / delete admin</td><td><code>AdminUserController</code> + <code>AdminUserService</code></td></tr>
+    <tr><td>Roles (CRUD)</td><td>Create / update / delete role; permission sync</td><td><code>RoleController</code> + <code>RoleService</code></td></tr>
+    <tr><td>Permissions</td><td>Listing only (read-only) &mdash; no audit needed unless someone seeds new permission rows manually</td><td><code>PermissionController</code></td></tr>
+    <tr><td>User addresses</td><td>Create / update / delete address; <code>is_primary</code> toggle</td><td><code>UserAddressController</code></td></tr>
+    <tr><td>Locations</td><td>Read-only (no audit needed for v1; seeders write at boot)</td><td><code>LocationController</code></td></tr>
+  </tbody>
+</table>
+
+<p>Anything that <em>writes</em> in the table above goes through audit. Anything purely read-only doesn&rsquo;t &mdash; logging reads is a separate (and much noisier) decision and out of scope.</p>
+
+<!-- ================= STRATEGY ================= -->
+<h2 id="strategy">4. Recording Strategy</h2>
+
+<p><strong>One pattern across the whole system:</strong> every audit entry is written by an explicit <code>Chronicle::record()</code> call from a service class, inside the same DB transaction as the mutation it describes. No model traits. No event listeners.</p>
+
+<p>The services that own each surface:</p>
+
+<table>
+  <thead>
+    <tr><th>Service</th><th>Owns the audit calls for</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>AdminAuthService</code></td><td>Login, logout, password reset, password change, profile update</td></tr>
+    <tr><td><code>OtpService</code></td><td>OTP issued, verified, verify-failed</td></tr>
+    <tr><td><code>AdminUserService</code></td><td>Admin user create / update / delete; the role-change and status-change side entries</td></tr>
+    <tr><td><code>RoleService</code></td><td>Role create / update / delete; the permission-sync side entry</td></tr>
+    <tr><td><code>UserAddressService</code> <em>(new &mdash; extracted from <code>UserAddressController</code>)</em></td><td>Address create / update / delete; the primary-set side entry</td></tr>
+  </tbody>
+</table>
+
+<p>Why this is the right single approach for this codebase:</p>
+<ul>
+  <li><strong>Auth / OTP / password aren&rsquo;t Eloquent writes</strong> &mdash; there&rsquo;s no model event a trait could hook into. A trait alone is impossible here.</li>
+  <li><strong>Splitting one user action into multiple semantic entries</strong> (e.g. an admin update producing <code>admin_user.updated</code> + <code>admin_user.role_changed</code> + <code>admin_user.status_changed</code>) requires control of the call site. A trait can only fire one generic <code>updated</code> event.</li>
+  <li><strong>The project already has a service-per-feature convention</strong> (<code>AdminAuthService</code>, <code>AdminUserService</code>, <code>RoleService</code>, <code>OtpService</code>). Adding audit calls there keeps audit, business logic, and transactions co-located.</li>
+  <li><strong>Sensitive-field scrubbing becomes obvious</strong> &mdash; the service chooses what enters <code>payload</code> / <code>diff</code>, so passwords and OTP values never accidentally leak through generic diff-of-dirty-attributes behavior.</li>
+</ul>
+
+<div class="callout warn">
+  <strong>Trade-off accepted:</strong> every CRUD service has to remember to call <code>Chronicle::record()</code>. The mitigation is a feature test per mutation path that asserts the entry exists (see &sect;15) and a project rule that new write services land with their audit test.
+</div>
+
+<div class="callout">
+  <strong>UserAddressController refactor:</strong> the controller currently runs <code>DB::transaction()</code> blocks inline. To keep the audit pattern uniform, the transactions move into a new <code>UserAddressService</code> (sibling of <code>AdminUserService</code> under <code>App\Services\Admin</code>). The controller becomes a thin pass-through. See &sect;8.6.
+</div>
+
+<!-- ================= INSTALL ================= -->
+<h2 id="install">5. Installation &amp; Configuration</h2>
+
+<h3>5.1 Install</h3>
+<pre><code>composer require laravel-chronicle/core
+
+# Publishes config + migrations
+docker exec api_starter_laravel_php sh -lc \
+  'cd /var/www/html &amp;&amp; php artisan chronicle:install'
+
+# Run new migrations
+docker exec api_starter_laravel_php sh -lc \
+  'cd /var/www/html &amp;&amp; php artisan migrate'</code></pre>
+
+<h3>5.2 Config &mdash; <code>config/chronicle.php</code> highlights</h3>
+
+<p>The published config exposes several knobs. The ones we care about for this project:</p>
+
+<table>
+  <thead>
+    <tr><th>Key</th><th>v1 value</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>default</code></td><td><code>eloquent</code></td><td>Start synchronous. Switch to <code>queued</code> once we&rsquo;ve confirmed there&rsquo;s no contention.</td></tr>
+    <tr><td><code>database.connection</code></td><td>same as default</td><td>Phase 2: move to a dedicated <code>chronicle</code> connection so audit retention doesn&rsquo;t cohabit with hot tables.</td></tr>
+    <tr><td><code>retention.days</code></td><td><code>365</code></td><td>One-year window before pruning runs. Aligns with most compliance defaults; raise if a contract demands more.</td></tr>
+    <tr><td><code>signing.enabled</code></td><td><code>true</code></td><td>Ed25519. Keys via <code>CHRONICLE_SIGNING_PRIVATE_KEY</code> / <code>_PUBLIC_KEY</code> env vars. Generate locally; store the private key only on the prod host.</td></tr>
+    <tr><td><code>signing.enforce_on_boot</code></td><td><code>true</code> in production, <code>false</code> in local</td><td>Forces the app to fail-fast if keys are missing in prod.</td></tr>
+    <tr><td><code>validation.max_payload_bytes</code></td><td><code>65536</code></td><td>Hard ceiling on a single entry. Our diffs are tiny; well within limits.</td></tr>
+    <tr><td><code>ui.enabled</code></td><td><code>false</code></td><td>Off. We expose a custom <code>/admin/audit-logs</code> endpoint instead (see &sect;12).</td></tr>
+  </tbody>
+</table>
+
+<h3>5.3 <code>.env</code> additions</h3>
+
+<pre><code>CHRONICLE_DRIVER=eloquent
+CHRONICLE_RETENTION_DAYS=365
+CHRONICLE_SIGNING_ENABLED=true
+CHRONICLE_SIGNING_PRIVATE_KEY=base64:&lt;ed25519-private-key&gt;
+CHRONICLE_SIGNING_PUBLIC_KEY=base64:&lt;ed25519-public-key&gt;
+CHRONICLE_UI_ENABLED=false</code></pre>
+
+<div class="callout warn">
+  <strong>Key generation:</strong> use <code>sodium_crypto_sign_keypair()</code> or whatever <code>chronicle:install</code> prompts. Commit only the <em>public</em> key to the repo (<code>.env.example</code>). The private key lives on the prod host and in your secrets manager &mdash; not in git.
+</div>
+
+<!-- ================= SCHEMA ================= -->
+<h2 id="schema">6. Schema &amp; Storage</h2>
+
+<p>Chronicle ships two migrations; we don&rsquo;t modify them. Reference shape:</p>
+
+<table>
+  <thead>
+    <tr><th>Column</th><th>Type</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>ULID, PK</td><td>Sortable, opaque.</td></tr>
+    <tr><td><code>actor_type</code> + <code>actor_id</code></td><td>string, string</td><td>Morph pair. Usually <code>App\Models\User</code> + <code>users.id</code>. <code>system</code> for jobs / seeders.</td></tr>
+    <tr><td><code>action</code></td><td>string(255), indexed</td><td>Dotted, snake_cased. See &sect;7.</td></tr>
+    <tr><td><code>subject_type</code> + <code>subject_id</code></td><td>string, string</td><td>The thing the action happened to. May be the same as actor (self-update) or a different model.</td></tr>
+    <tr><td><code>payload</code></td><td>JSON, nullable</td><td>Free-form snapshot. We mostly leave this null and rely on <code>diff</code>.</td></tr>
+    <tr><td><code>diff</code></td><td>JSON, nullable</td><td><code>{ "field": { "old": ..., "new": ... } }</code>. Built by the trait or by <code>EntryBuilder::change()</code>.</td></tr>
+    <tr><td><code>metadata</code></td><td>JSON, nullable</td><td>Domain-level facts the API consumer wants (e.g. <code>role_name</code>, <code>ip</code>, <code>device</code>).</td></tr>
+    <tr><td><code>context</code></td><td>JSON, nullable</td><td>Environment-level facts (request ID, hostname, queue name). Filled by context resolvers.</td></tr>
+    <tr><td><code>tags</code></td><td>JSON, nullable</td><td>Up to 10 short strings for fanout filtering (<code>auth</code>, <code>security</code>, <code>roles</code>).</td></tr>
+    <tr><td><code>correlation_id</code></td><td>string(255), indexed, nullable</td><td>Group entries from one request / job chain.</td></tr>
+    <tr><td><code>payload_hash</code></td><td>char(64), nullable</td><td>SHA256 of the canonicalized payload.</td></tr>
+    <tr><td><code>chain_hash</code></td><td>char(64), nullable</td><td><code>SHA256(prev_chain_hash + payload_hash)</code>.</td></tr>
+    <tr><td><code>checkpoint_id</code></td><td>ULID FK, nullable</td><td>Most recent signed anchor.</td></tr>
+    <tr><td><code>created_at</code></td><td>timestamp, indexed</td><td>UTC.</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Indexes shipped:</strong> <code>(actor_type, actor_id)</code>, <code>(subject_type, subject_id)</code>, <code>correlation_id</code>, <code>action</code>, <code>created_at</code>. Enough for the queries in &sect;12.</p>
+
+<!-- ================= ACTIONS ================= -->
+<h2 id="actions">7. Action Naming Convention</h2>
+
+<p>Every <code>action</code> is dotted, snake_cased, and reads <code>&lt;feature&gt;.&lt;noun&gt;.&lt;verb_past_tense&gt;</code>. Three levels max. Verbs use the past tense because the entry is recorded <em>after</em> the change.</p>
+
+<table>
+  <thead>
+    <tr><th>Feature</th><th>Pattern</th><th>Examples</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Auth</td><td><code>auth.*</code></td><td><code>auth.login.succeeded</code>, <code>auth.login.failed</code>, <code>auth.logout</code></td></tr>
+    <tr><td>Password</td><td><code>auth.password.*</code></td><td><code>auth.password.forgot_requested</code>, <code>auth.password.reset_completed</code>, <code>auth.password.changed</code></td></tr>
+    <tr><td>OTP</td><td><code>otp.*</code></td><td><code>otp.issued</code>, <code>otp.verified</code>, <code>otp.verify_failed</code>, <code>otp.exhausted</code></td></tr>
+    <tr><td>Admin user</td><td><code>admin_user.*</code></td><td><code>admin_user.created</code>, <code>admin_user.updated</code>, <code>admin_user.deleted</code>, <code>admin_user.status_changed</code>, <code>admin_user.role_changed</code>, <code>admin_user.password_reset_by_admin</code></td></tr>
+    <tr><td>Role</td><td><code>role.*</code></td><td><code>role.created</code>, <code>role.updated</code>, <code>role.deleted</code>, <code>role.permissions_synced</code></td></tr>
+    <tr><td>Profile</td><td><code>profile.*</code></td><td><code>profile.updated</code></td></tr>
+    <tr><td>Address</td><td><code>user_address.*</code></td><td><code>user_address.created</code>, <code>user_address.updated</code>, <code>user_address.deleted</code>, <code>user_address.primary_set</code></td></tr>
+  </tbody>
+</table>
+
+<p>Standard <strong>tags</strong> we&rsquo;ll attach so filters in the read API are fast:</p>
+<ul>
+  <li><code>auth</code> &mdash; anything authentication-related.</li>
+  <li><code>security</code> &mdash; failed logins, OTP failures, suspicious activity.</li>
+  <li><code>admin</code> &mdash; mutations on admin users.</li>
+  <li><code>rbac</code> &mdash; roles, permissions, role assignments.</li>
+  <li><code>profile</code> &mdash; self-service profile changes.</li>
+  <li><code>address</code> &mdash; address CRUD.</li>
+</ul>
+
+<!-- ================= FEATURES ================= -->
+<h2 id="features">8. Per-Feature Audit Map</h2>
+
+<p>For each mutation, this table picks the <strong>service</strong> that owns it, the <strong>action key</strong>, the <strong>subject</strong>, and what goes into <strong>metadata</strong> / <strong>diff</strong>. Every entry is recorded via <code>Chronicle::record()</code> inside the service&rsquo;s transaction (see &sect;4). Implement the table top-to-bottom &mdash; that&rsquo;s also the steps in &sect;16.</p>
+
+<h3>8.1 Authentication</h3>
+
+<table>
+  <thead>
+    <tr><th>Trigger</th><th>Action</th><th>Actor</th><th>Subject</th><th>Metadata / Diff</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Successful admin login</td>
+      <td><code>auth.login.succeeded</code></td>
+      <td>The user (just logged in)</td>
+      <td>The user</td>
+      <td><code>metadata: { ip, user_agent, device_name }</code>; <code>tags: [auth]</code></td>
+    </tr>
+    <tr>
+      <td>Failed login attempt</td>
+      <td><code>auth.login.failed</code></td>
+      <td><code>system</code> (we don&rsquo;t know who tried)</td>
+      <td>The User by email if found, else <code>null</code> + email in metadata</td>
+      <td><code>metadata: { email_attempted, reason: invalid_credentials|deactivated, ip, user_agent }</code>; <code>tags: [auth, security]</code></td>
+    </tr>
+    <tr>
+      <td>Logout</td>
+      <td><code>auth.logout</code></td>
+      <td>The user</td>
+      <td>The user</td>
+      <td><code>metadata: { token_id, ip }</code>; <code>tags: [auth]</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  All three are recorded from <code>AdminAuthService::login()</code> and the logout controller path. The throw branches inside <code>login()</code> emit <code>auth.login.failed</code> before re-throwing; the return path emits <code>auth.login.succeeded</code>. Same service, same transaction boundary.
+</div>
+
+<h3>8.2 Password &amp; OTP</h3>
+
+<table>
+  <thead>
+    <tr><th>Trigger</th><th>Action</th><th>Subject</th><th>Metadata</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>POST /admin/forgot-password</code></td><td><code>auth.password.forgot_requested</code></td><td>The user (by email lookup)</td><td><code>{ ip, channel: email }</code>, tag <code>auth</code></td></tr>
+    <tr><td><code>POST /admin/reset-password</code> success</td><td><code>auth.password.reset_completed</code></td><td>The user</td><td><code>{ ip, tokens_revoked: int }</code>, tags <code>auth, security</code></td></tr>
+    <tr><td><code>POST /admin/change-password</code></td><td><code>auth.password.changed</code></td><td>The user (self)</td><td><code>{ ip, other_tokens_revoked: int }</code>, tags <code>auth, security</code></td></tr>
+    <tr><td><code>OtpService::issue()</code></td><td><code>otp.issued</code></td><td>The User if known (by email/phone), else <code>null</code> + identifier in metadata</td><td><code>{ channel, identifier, expires_at }</code>, tag <code>auth</code></td></tr>
+    <tr><td><code>OtpService::verify()</code> success</td><td><code>otp.verified</code></td><td>Same as above</td><td><code>{ channel, attempts_used }</code>, tag <code>auth</code></td></tr>
+    <tr><td><code>OtpService::verify()</code> fail (wrong code / expired / exhausted)</td><td><code>otp.verify_failed</code></td><td>Same as above</td><td><code>{ channel, reason: invalid|expired|exhausted, ip }</code>, tags <code>auth, security</code></td></tr>
+  </tbody>
+</table>
+
+<div class="callout warn">
+  <strong>Never log the OTP itself.</strong> Log only that one was issued / verified, the channel, the expiry, and the attempt outcome. The plaintext OTP exists in memory for a single response and never enters Chronicle.
+</div>
+
+<h3>8.3 Admin users (CRUD)</h3>
+
+<table>
+  <thead>
+    <tr><th>Trigger</th><th>Action</th><th>Subject</th><th>Diff / Metadata</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>AdminUserService::create()</code></td>
+      <td><code>admin_user.created</code></td>
+      <td>The new User</td>
+      <td>
+        <code>metadata: { role_name }</code>;<br>
+        <code>payload: { name, email, status }</code> (no password);<br>
+        tag <code>admin, rbac</code>
+      </td>
+    </tr>
+    <tr>
+      <td><code>AdminUserService::update()</code></td>
+      <td><code>admin_user.updated</code></td>
+      <td>The User</td>
+      <td>
+        <code>diff: { name, email, status }</code> (computed via <code>EntryBuilder::modelDiff()</code>);<br>
+        <code>metadata: { password_changed: bool, tokens_revoked: int }</code>;<br>
+        tag <code>admin</code>
+      </td>
+    </tr>
+    <tr>
+      <td>Role swap inside same update (separate entry)</td>
+      <td><code>admin_user.role_changed</code></td>
+      <td>The User</td>
+      <td><code>diff: { role: { old, new } }</code>; tag <code>admin, rbac</code></td>
+    </tr>
+    <tr>
+      <td>Status flip inside same update (separate entry)</td>
+      <td><code>admin_user.status_changed</code></td>
+      <td>The User</td>
+      <td><code>diff: { status: { old, new } }</code>; tag <code>admin, security</code></td>
+    </tr>
+    <tr>
+      <td><code>AdminUserService::delete()</code></td>
+      <td><code>admin_user.deleted</code></td>
+      <td>The User</td>
+      <td><code>metadata: { name, email, role_name, tokens_revoked }</code> (because the row is gone); tag <code>admin</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>Why two entries for &ldquo;update + role swap&rdquo;?</strong> Because filtering on <code>action = admin_user.role_changed</code> across the whole ledger is the security team&rsquo;s realistic query. Burying role changes inside a generic <code>admin_user.updated</code> diff hides them. Same goes for status flips on a deactivation.
+</div>
+
+<h3>8.4 Roles &amp; permissions</h3>
+
+<table>
+  <thead>
+    <tr><th>Trigger</th><th>Action</th><th>Subject</th><th>Diff / Metadata</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>RoleService::create()</code></td><td><code>role.created</code></td><td>Role</td><td><code>payload: { name, status, permission_ids: [...] }</code>; tag <code>rbac</code></td></tr>
+    <tr><td><code>RoleService::update()</code> &mdash; field changes</td><td><code>role.updated</code></td><td>Role</td><td><code>diff: { name, status }</code>; tag <code>rbac</code></td></tr>
+    <tr><td><code>RoleService::update()</code> &mdash; permissions sync (separate entry)</td><td><code>role.permissions_synced</code></td><td>Role</td><td><code>diff: { permissions: { added: [...], removed: [...] } }</code>; tag <code>rbac, security</code></td></tr>
+    <tr><td><code>RoleService::delete()</code></td><td><code>role.deleted</code></td><td>Role</td><td><code>metadata: { name, was_assigned_to: 0 }</code>; tag <code>rbac</code></td></tr>
+  </tbody>
+</table>
+
+<h3>8.5 Profile</h3>
+
+<table>
+  <thead>
+    <tr><th>Trigger</th><th>Action</th><th>Subject</th><th>Diff</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>AdminAuthService::updateProfile()</code></td><td><code>profile.updated</code></td><td>The user (self)</td><td><code>diff: { name, email }</code>; tag <code>profile</code></td></tr>
+  </tbody>
+</table>
+
+<h3>8.6 User addresses</h3>
+
+<p>The current <code>UserAddressController</code> runs <code>DB::transaction()</code> blocks inline. As part of this work it gets refactored into a new <code>UserAddressService</code> (sibling of <code>AdminUserService</code> under <code>App\Services\Admin</code>) so the audit calls live alongside the transaction, the same way every other feature does it. The controller stays &mdash; just thinner.</p>
+
+<table>
+  <thead>
+    <tr><th>Trigger</th><th>Action</th><th>Subject</th><th>Diff / Metadata</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>UserAddressService::create()</code></td><td><code>user_address.created</code></td><td>The new <code>UserAddress</code></td><td><code>payload: { label, is_primary, admin_area_id, address_line1, address_line2, latitude, longitude }</code>; tag <code>address</code></td></tr>
+    <tr><td><code>UserAddressService::update()</code></td><td><code>user_address.updated</code></td><td>The <code>UserAddress</code></td><td><code>diff</code> built via <code>EntryBuilder::modelDiff()</code>; tag <code>address</code></td></tr>
+    <tr><td><code>UserAddressService::delete()</code></td><td><code>user_address.deleted</code></td><td>The <code>UserAddress</code></td><td><code>metadata: { label, was_primary, admin_area_id }</code>; tag <code>address</code></td></tr>
+    <tr><td>A create/update demotes an existing primary (separate entry)</td><td><code>user_address.primary_set</code></td><td>The new primary <code>UserAddress</code></td><td><code>metadata: { previous_primary_address_id }</code>; tag <code>address</code></td></tr>
+  </tbody>
+</table>
+
+<h3>8.7 No-trait rule</h3>
+
+<p>Across the entire codebase, <strong>no model uses <code>HasChronicle</code></strong>. All audit calls are made explicitly from the responsible service. Specifically:</p>
+<ul>
+  <li><code>User</code>, <code>Role</code>, <code>UserAddress</code> &mdash; audited via their services (<code>AdminUserService</code>, <code>RoleService</code>, <code>UserAddressService</code>).</li>
+  <li><code>Otp</code> &mdash; audited via <code>OtpService</code>. The raw row contains the OTP hash and must never enter a generic model-event diff.</li>
+  <li><code>Permission</code>, <code>Country</code>, <code>AdminLevel</code>, <code>AdminArea</code>, <code>PostalCode</code>, <code>CountryAdminStructure</code> &mdash; seeded reference data; no runtime writes, no audit needed.</li>
+</ul>
+
+<p>Enforced by a project rule (CLAUDE.md or PR checklist): adding <code>HasChronicle</code> to any model is rejected in review.</p>
+
+<!-- ================= SENSITIVE ================= -->
+<h2 id="sensitive">9. Sensitive Field Handling</h2>
+
+<p>Three rules, applied everywhere:</p>
+<ol>
+  <li><strong>Never log the field value itself</strong> for: <code>password</code>, <code>remember_token</code>, <code>otp</code> (hashed or plaintext), <code>plainTextToken</code> from Sanctum.</li>
+  <li><strong>Log the fact that it changed</strong>, not the value. e.g. <code>metadata: { password_changed: true }</code> instead of <code>diff: { password: { old, new } }</code>.</li>
+  <li><strong>Email is logged</strong> because it&rsquo;s already in <code>users</code> and showing up in <code>diff</code> doesn&rsquo;t create new exposure. If GDPR scope grows later, pseudonymize at query time, not at write time &mdash; rewriting the ledger would break the hash chain.</li>
+</ol>
+
+<p>How to implement:</p>
+
+<p>Because every audit call is explicit (&sect;4), the service simply doesn&rsquo;t put the sensitive value into the <code>payload</code> / <code>diff</code> array it hands to <code>EntryBuilder</code>. <code>EntryBuilder</code> doesn&rsquo;t scrub by default &mdash; the service controls exactly what goes in.</p>
+
+<pre><code>// AdminUserService::update() &mdash; correct:
+Chronicle::record()
+    -&gt;actor($actor)
+    -&gt;action('admin_user.updated')
+    -&gt;subject($target)
+    -&gt;modelDiff($target)                              // diffs name/email/status
+    -&gt;metadata([
+        'password_changed' =&gt; $passwordChanged,        // boolean only, never the value
+        'tokens_revoked'   =&gt; $tokensRevoked,
+    ])
+    -&gt;tags(['admin'])
+    -&gt;commit();</code></pre>
+
+<p>If a future refactor lets the service hand the whole model to <code>modelDiff()</code>, the model&rsquo;s <code>$hidden</code> array (<code>password</code>, <code>remember_token</code>) protects against accidental serialization &mdash; but we still don&rsquo;t rely on it; the rule is &ldquo;construct the diff array yourself when sensitive fields are in play&rdquo;.</p>
+
+<!-- ================= CONTEXT ================= -->
+<h2 id="context">10. Actor, Context &amp; Correlation</h2>
+
+<h3>10.1 Actor resolution</h3>
+
+<p>Chronicle defaults to <code>Auth::user() ?? 'system'</code>. That works for every authenticated admin endpoint. For:</p>
+<ul>
+  <li><strong>Failed-login</strong> entries: no auth user, so actor is the literal string <code>'system'</code> and the attempted email goes in <code>metadata</code>.</li>
+  <li><strong>OTP issued during forgot-password</strong>: still no authenticated user (forgot-password is public). Actor = <code>'system'</code>; subject = the looked-up User; metadata holds the requesting IP.</li>
+  <li><strong>Queue jobs</strong>: actor = <code>'system'</code> unless the job explicitly forwards the original user via a serialized field.</li>
+</ul>
+
+<h3>10.2 Correlation IDs</h3>
+
+<p>Wire a middleware that:</p>
+<ol>
+  <li>Reads the incoming <code>X-Correlation-Id</code> header, or generates a ULID if absent.</li>
+  <li>Sets it on Chronicle via the manager (or via the request context the package picks up).</li>
+  <li>Echoes it back as a response header so the frontend can include it in error reports.</li>
+</ol>
+
+<p>Result: every entry produced during a single API request shares the same <code>correlation_id</code>. Investigating &ldquo;what happened in this request&rdquo; becomes one query.</p>
+
+<h3>10.3 Context resolvers</h3>
+
+<p>Enable the bundled context resolvers in <code>config/chronicle.php</code>:</p>
+<ul>
+  <li><code>request</code> &mdash; captures URL, method, IP, user agent.</li>
+  <li><code>environment</code> &mdash; app env (production / staging).</li>
+  <li><code>queue</code> &mdash; queue name + job class when recorded inside a job.</li>
+</ul>
+
+<p>This way <code>context</code> on every entry is auto-populated; we don&rsquo;t pass <code>ip</code> / <code>user_agent</code> by hand on each <code>record()</code> call.</p>
+
+<!-- ================= QUEUE ================= -->
+<h2 id="queue">11. Queueing &amp; Performance</h2>
+
+<p>Start with <strong><code>eloquent</code> (synchronous)</strong> in v1. Each audit entry adds one INSERT inside the request. For our load (admin panel, low write rate) this is invisible.</p>
+
+<p>Promote to <strong><code>queued</code></strong> when either of these is true:</p>
+<ul>
+  <li>p95 of any audited endpoint creeps above ~50ms because of the audit write.</li>
+  <li>A single user action explodes into 3+ entries (current worst case is admin update &rarr; <code>updated</code> + <code>role_changed</code> + <code>status_changed</code> = 3 inserts, still fine).</li>
+</ul>
+
+<div class="callout danger">
+  <strong>If you switch to the queued driver, the chronicle queue MUST be processed by exactly one worker:</strong>
+  <pre><code>php artisan queue:work --queue=chronicle --tries=1</code></pre>
+  Multiple workers race the chain-hash computation and produce forked chains, which breaks verification. The package documents this explicitly. Configure your supervisor / Horizon accordingly.
+</div>
+
+<!-- ================= API ================= -->
+<h2 id="api">12. Read API &amp; Filtering</h2>
+
+<p>We don&rsquo;t use the bundled Blade UI. Instead, expose Chronicle through the existing admin API surface.</p>
+
+<h3>12.1 Endpoints</h3>
+
+<table>
+  <thead>
+    <tr><th>Method</th><th>Path</th><th>Action</th><th>Permission</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GET</td><td><code>/admin/audit-logs</code></td><td>Paginated list. Filterable by <code>actor_type</code> + <code>actor_id</code> and/or <code>subject_type</code> + <code>subject_id</code>. Nothing else.</td><td><code>audit.view</code></td></tr>
+    <tr><td>GET</td><td><code>/admin/audit-logs/{entry}</code></td><td>Single entry with full payload / diff / context.</td><td><code>audit.view</code></td></tr>
+  </tbody>
+</table>
+
+<h3>12.2 Controller sketch</h3>
+
+<div class="filepath">app/Http/Controllers/Admin/AuditLogController.php</div>
+<pre><code>use Chronicle\Entry\Entry;
+
+public function index(IndexAuditLogRequest $request): JsonResponse
+{
+    $query = Entry::query();
+
+    if ($request-&gt;filled('actor_type') &amp;&amp; $request-&gt;filled('actor_id')) {
+        $query-&gt;where('actor_type', $request-&gt;string('actor_type'))
+              -&gt;where('actor_id',   $request-&gt;string('actor_id'));
+    }
+
+    if ($request-&gt;filled('subject_type') &amp;&amp; $request-&gt;filled('subject_id')) {
+        $query-&gt;where('subject_type', $request-&gt;string('subject_type'))
+              -&gt;where('subject_id',   $request-&gt;string('subject_id'));
+    }
+
+    $entries = $query-&gt;orderByDesc('created_at')-&gt;cursorPaginate(50);
+
+    return $this-&gt;success(
+        data: AuditLogResource::collection($entries),
+        message: 'Audit logs fetched.',
+    );
+}
+
+public function show(string $entry): JsonResponse
+{
+    $row = Entry::query()-&gt;findOrFail($entry);
+
+    return $this-&gt;success(
+        data: AuditLogResource::make($row),
+        message: 'Audit log fetched.',
+    );
+}</code></pre>
+
+<p><strong><code>IndexAuditLogRequest</code> rules:</strong></p>
+<pre><code>'actor_type'   =&gt; ['nullable', 'string', 'required_with:actor_id'],
+'actor_id'     =&gt; ['nullable', 'string', 'required_with:actor_type'],
+'subject_type' =&gt; ['nullable', 'string', 'required_with:subject_id'],
+'subject_id'   =&gt; ['nullable', 'string', 'required_with:subject_type'],</code></pre>
+
+<h3>12.3 Resource</h3>
+
+<pre><code>// AuditLogResource projects what the frontend needs &mdash; not the chain hashes.
+return [
+    'id'             =&gt; $this-&gt;id,
+    'action'         =&gt; $this-&gt;action,
+    'actor'          =&gt; [
+        'type' =&gt; $this-&gt;actor_type,
+        'id'   =&gt; $this-&gt;actor_id,
+        'label'=&gt; $this-&gt;actor_label(),  // resolved name/email if model is loadable
+    ],
+    'subject'        =&gt; [
+        'type' =&gt; $this-&gt;subject_type,
+        'id'   =&gt; $this-&gt;subject_id,
+    ],
+    'metadata'       =&gt; $this-&gt;metadata,
+    'diff'           =&gt; $this-&gt;diff,
+    'tags'           =&gt; $this-&gt;tags,
+    'correlation_id' =&gt; $this-&gt;correlation_id,
+    'created_at'     =&gt; $this-&gt;created_at-&gt;format('d/m/Y h:i A'),
+];</code></pre>
+
+<!-- ================= ACCESS ================= -->
+<h2 id="access">13. Permissions &amp; UI Access</h2>
+
+<p>One new permission, in a new <code>Audit</code> group, added to <code>PermissionSeeder</code>:</p>
+
+<pre><code>'Audit' =&gt; [
+    'audit.view',
+],</code></pre>
+
+<table>
+  <thead>
+    <tr><th>Permission</th><th>Holders</th><th>Gates</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>audit.view</code></td><td>Administrator role and any custom &ldquo;Auditor&rdquo; role we add later</td><td>Both <code>/admin/audit-logs</code> endpoints (list + show).</td></tr>
+  </tbody>
+</table>
+
+<p>Export / verification of the signed bundle stays a CLI concern (&sect;14) &mdash; no HTTP endpoint, no permission, no exposure.</p>
+
+<!-- ================= RETENTION ================= -->
+<h2 id="retention">14. Retention, Export &amp; Verification</h2>
+
+<h3>14.1 Retention</h3>
+<p>365-day rolling window by default (<code>config/chronicle.php</code> &rarr; <code>retention.days</code>). The package ships a prune command; schedule it daily:</p>
+
+<pre><code>// routes/console.php
+Schedule::command('chronicle:prune')-&gt;daily()-&gt;onOneServer();</code></pre>
+
+<div class="callout warn">
+  <strong>Pruning is irreversible</strong>. Before raising or lowering the retention window, run an export of the soon-to-be-pruned range so the signed bundle is on cold storage. Treat the export as the &ldquo;real&rdquo; long-term record; the DB is the hot index.
+</div>
+
+<h3>14.2 Export</h3>
+<p>Manual or scheduled:</p>
+<pre><code># All entries
+php artisan chronicle:export
+
+# Date-range bounded
+php artisan chronicle:export --from=2026-01-01 --to=2026-03-31 --out=/storage/audit/q1-2026</code></pre>
+
+<p>Output is a directory with:</p>
+<ul>
+  <li><code>entries.ndjson</code> &mdash; one JSON entry per line, in chain order.</li>
+  <li><code>manifest.json</code> &mdash; counts, ranges, hash of <code>entries.ndjson</code>.</li>
+  <li><code>signature.json</code> &mdash; Ed25519 signature of <code>manifest.json</code>.</li>
+</ul>
+
+<h3>14.3 Verification</h3>
+<pre><code>php artisan chronicle:verify-export --path=/storage/audit/q1-2026</code></pre>
+<p>Reports: dataset hash match, signature validity, hash-chain integrity, range boundaries. Any failure means tampering or corruption between export and verification.</p>
+
+<h3>14.4 Scheduling</h3>
+<pre><code>// routes/console.php
+Schedule::command('chronicle:export --out=/storage/audit/monthly')
+    -&gt;monthlyOn(1, '02:00')
+    -&gt;onOneServer();</code></pre>
+
+<p>Then ship <code>/storage/audit/monthly</code> to S3 with bucket versioning + object-lock on. That&rsquo;s the compliance copy.</p>
+
+<!-- ================= TESTS ================= -->
+<h2 id="tests">15. Tests</h2>
+
+<p>The package ships a <code>Chronicle::fake()</code> facade method that swaps in an in-memory recorder, exposing assertions like <code>assertRecorded(action: 'x', subject: $model)</code>. Use it for every audited path. Coverage we need:</p>
+
+<ul>
+  <li><strong>AuthLoginAuditTest</strong> &mdash; successful login records <code>auth.login.succeeded</code> with actor=user, ip in metadata; failed login records <code>auth.login.failed</code> with email in metadata; deactivated login records <code>auth.login.failed</code> with <code>reason=deactivated</code>.</li>
+  <li><strong>AuthLogoutAuditTest</strong> &mdash; <code>auth.logout</code> records with token_id.</li>
+  <li><strong>PasswordFlowAuditTest</strong> &mdash; forgot &rarr; <code>auth.password.forgot_requested</code>, <code>otp.issued</code>; reset &rarr; <code>otp.verified</code>, <code>auth.password.reset_completed</code>; change &rarr; <code>auth.password.changed</code>. Verify <strong>no password value appears in any entry</strong>.</li>
+  <li><strong>OtpFailureAuditTest</strong> &mdash; wrong code records <code>otp.verify_failed</code> with reason=invalid; max attempts records reason=exhausted.</li>
+  <li><strong>AdminUserAuditTest</strong> &mdash; create/update/delete record the right actions; role swap inside an update produces an extra <code>admin_user.role_changed</code> entry; status flip produces an extra <code>admin_user.status_changed</code> entry; password changes never appear in <code>diff</code>.</li>
+  <li><strong>RoleAuditTest</strong> &mdash; create/update/delete record the right actions; permission sync produces <code>role.permissions_synced</code> with <code>added</code> / <code>removed</code> arrays.</li>
+  <li><strong>ProfileAuditTest</strong> &mdash; <code>profile.updated</code> diff has name/email only.</li>
+  <li><strong>UserAddressAuditTest</strong> &mdash; <code>UserAddressService::create/update/delete</code> record the matching <code>user_address.*</code> entries; a write that demotes an existing primary produces an extra <code>user_address.primary_set</code> entry.</li>
+  <li><strong>CorrelationIdAuditTest</strong> &mdash; multiple entries within one request share the same <code>correlation_id</code>; the header is echoed back.</li>
+  <li><strong>SensitiveFieldsAuditTest</strong> &mdash; grep the recorded payloads for <code>password</code>, <code>remember_token</code>, <code>otp</code> &mdash; must be absent.</li>
+  <li><strong>AuditApiTest</strong> &mdash; <code>/admin/audit-logs</code> filters work for actor pair and subject pair; <code>/admin/audit-logs/{entry}</code> returns the full entry; pagination works; <code>audit.view</code> gates both; without permission &rarr; 403; unknown entry id &rarr; 404.</li>
+  <li><strong>ChainIntegrityTest</strong> &mdash; create 50 entries, run <code>chronicle:export</code> + <code>chronicle:verify-export</code> programmatically, expect green.</li>
+</ul>
+
+<p>Run: <code>docker exec api_starter_laravel_php sh -lc 'cd /var/www/html &amp;&amp; php artisan test --compact --filter=Audit'</code></p>
+
+<!-- ================= STEPS ================= -->
+<h2 id="steps">16. Step-by-Step Implementation Order</h2>
+
+<div class="step"><div class="step-num">1</div><div class="step-body">
+  <h4>Install package + migrations</h4>
+  <p><code>composer require laravel-chronicle/core</code>, <code>php artisan chronicle:install</code>, <code>php artisan migrate</code>. Generate Ed25519 keys; set <code>.env</code>.</p>
+</div></div>
+
+<div class="step"><div class="step-num">2</div><div class="step-body">
+  <h4>Correlation middleware</h4>
+  <p>Build <code>SetCorrelationId</code>; register globally on the API stack. Verify the response header round-trips.</p>
+</div></div>
+
+<div class="step"><div class="step-num">3</div><div class="step-body">
+  <h4>Permissions + role</h4>
+  <p>Add the <code>Audit</code> group to <code>PermissionSeeder</code>; grant both to Administrator in <code>RoleSeeder</code>. Reseed.</p>
+</div></div>
+
+<div class="step"><div class="step-num">4</div><div class="step-body">
+  <h4>Auth audits (highest value)</h4>
+  <p>Edit <code>AdminAuthService::login</code> to emit <code>auth.login.succeeded</code> and <code>auth.login.failed</code> at the right exit paths. Edit logout in <code>AuthController</code>. Write <strong>AuthLoginAuditTest</strong> first; iterate until green.</p>
+</div></div>
+
+<div class="step"><div class="step-num">5</div><div class="step-body">
+  <h4>Password &amp; OTP audits</h4>
+  <p>Add <code>Chronicle::record()</code> calls inside <code>OtpService::issue / verify</code> (success + failure branches), <code>AdminAuthService::applyNewPassword</code>, <code>changePassword</code>, and the forgot-password controller path. <strong>Never include OTP / password values.</strong></p>
+</div></div>
+
+<div class="step"><div class="step-num">6</div><div class="step-body">
+  <h4>Admin user audits</h4>
+  <p>Edit <code>AdminUserService::create/update/delete</code> per &sect;8.3. Emit the secondary <code>role_changed</code> / <code>status_changed</code> entries only when those specific fields move.</p>
+</div></div>
+
+<div class="step"><div class="step-num">7</div><div class="step-body">
+  <h4>Role audits</h4>
+  <p>Edit <code>RoleService::create/update/delete</code> per &sect;8.4. Compute permission deltas (<code>added</code> / <code>removed</code>) and emit <code>role.permissions_synced</code>.</p>
+</div></div>
+
+<div class="step"><div class="step-num">8</div><div class="step-body">
+  <h4>Profile audit</h4>
+  <p>One <code>Chronicle::record()</code> call in <code>AdminAuthService::updateProfile</code>. Uses <code>modelDiff()</code>.</p>
+</div></div>
+
+<div class="step"><div class="step-num">9</div><div class="step-body">
+  <h4>User address service + audits</h4>
+  <p>Create <code>App\Services\Admin\UserAddressService</code> with <code>create()</code>, <code>update()</code>, <code>delete()</code> methods. Move the existing <code>DB::transaction</code> blocks out of <code>UserAddressController</code> into the service. Emit <code>user_address.created/updated/deleted</code> from the matching methods, and the separate <code>user_address.primary_set</code> entry whenever a write demoted a previous primary. Controller becomes a thin pass-through.</p>
+</div></div>
+
+<div class="step"><div class="step-num">10</div><div class="step-body">
+  <h4>Read API</h4>
+  <p>Build <code>AuditLogController</code> (index + show only), <code>IndexAuditLogRequest</code>, <code>AuditLogResource</code>. Mount the two routes in <code>routes/api.php</code> under the existing <code>auth:sanctum + admin</code> group, both gated by <code>audit.view</code>.</p>
+</div></div>
+
+<div class="step"><div class="step-num">11</div><div class="step-body">
+  <h4>Retention + export schedule</h4>
+  <p>Wire <code>chronicle:prune</code> daily and <code>chronicle:export</code> monthly in <code>routes/console.php</code>. Document the S3 upload step in the deployment runbook.</p>
+</div></div>
+
+<div class="step"><div class="step-num">12</div><div class="step-body">
+  <h4>Tests &amp; sensitive-field grep</h4>
+  <p>Run the full audit test suite. Run <strong>SensitiveFieldsAuditTest</strong> last &mdash; it grep-asserts that no recorded entry contains a password / remember_token / OTP value.</p>
+</div></div>
+
+<div class="step"><div class="step-num">13</div><div class="step-body">
+  <h4>Pint + Postman</h4>
+  <p><code>vendor/bin/pint --dirty --format agent</code>. Add the audit endpoints to <code>postman_collection/</code>.</p>
+</div></div>
+
+<!-- ================= RISKS ================= -->
+<h2 id="risks">17. Risks &amp; Open Questions</h2>
+
+<ul>
+  <li><strong>Queue worker discipline.</strong> The biggest operational footgun: switching to the <code>queued</code> driver without ensuring a single worker on the <code>chronicle</code> queue forks the hash chain. Document this in the runbook; lock the supervisor config; alert on multiple workers seen on the queue.</li>
+  <li><strong>Private key handling.</strong> If <code>CHRONICLE_SIGNING_PRIVATE_KEY</code> leaks, an attacker can produce valid-looking signed exports. Treat like any production credential &mdash; secrets manager, rotation playbook, deploy-time injection only.</li>
+  <li><strong>Retention vs compliance contracts.</strong> 365 days is a default, not a commitment. Check what the longest contract / regulation in scope demands (PCI: 1 year; SOX: 7 years; HIPAA: 6 years). Bump the env var accordingly; back-fill any pre-bump exports.</li>
+  <li><strong>Failed-login enumeration via the audit log.</strong> The <code>auth.login.failed</code> entries include the attempted email. If <code>audit.view</code> is granted too liberally, that&rsquo;s an enumeration surface. Keep <code>audit.view</code> on the Administrator role and any future explicit Auditor role; don&rsquo;t hand it to general admins.</li>
+  <li><strong>Limited filter surface.</strong> By design the read API only filters on actor + subject. Operators who want &ldquo;all failed logins this week&rdquo; or &ldquo;all role syncs&rdquo; will hit the DB directly or trigger a CLI export. If those questions become routine, revisit the filter list before each one gets bolted on ad-hoc.</li>
+  <li><strong>Action-name sprawl.</strong> Three levels (<code>feature.noun.verb</code>) is a soft cap. Resist adding a fourth. If you find yourself wanting <code>admin_user.password.reset_by_admin</code>, prefer flattening to <code>admin_user.password_reset_by_admin</code>.</li>
+  <li><strong>Performance under bulk imports.</strong> Today there are no bulk-import endpoints. If one ever ships (e.g. CSV import of admin users), wrap it in <code>Chronicle::transaction()</code> so the N entries get the same correlation id and aren&rsquo;t lost to N individual flushes.</li>
+  <li><strong>Forgetting an audit call.</strong> Because the approach is service-everywhere with explicit <code>Chronicle::record()</code> calls (&sect;4), a new mutation method shipped without its audit call silently fails to log. Mitigations: every CRUD test asserts the audit entry exists (&sect;15); PR review checklist requires the audit test for any new service method that writes.</li>
+  <li><strong>Chronicle UI off by default.</strong> If someone flips <code>CHRONICLE_UI_ENABLED=true</code> in production, the bundled Blade routes appear unauthenticated unless the package&rsquo;s middleware is also set. Keep it off; surface logs only through our gated API.</li>
+</ul>
+
+<footer>
+  Plan version 1.0 &mdash; aligned with <code>admin-auth-plan.html</code>, <code>role-permission-admin-management-plan.html</code>, <code>location-management-plan.html</code>, <code>user-location-relationship-plan.html</code>, and <code>employee-feature-plan.html</code>.
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,67 @@
+services:
+  api_starter_laravel_nginx:
+    image: nginx:alpine
+    container_name: api_starter_laravel_nginx
+    ports:
+      - "${APP_EXTERNAL_PORT:-8080}:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - .:/var/www/html
+    depends_on:
+      - api_starter_laravel_php
+    networks:
+      - laravel
+      - api_starter_shared_network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  api_starter_laravel_php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USER_ID: ${USER_ID}
+        GROUP_ID: ${GROUP_ID}
+        USER_NAME: ${USER_NAME}
+        GROUP_NAME: ${GROUP_NAME}
+    container_name: api_starter_laravel_php
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - api_starter_laravel_postgres
+    networks:
+      - laravel
+      - api_starter_shared_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  api_starter_laravel_postgres:
+    image: postgres:15
+    container_name: api_starter_laravel_postgres
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_EXTERNAL_PORT}:${DB_PORT}" # For connecting to PostgreSQL from outside the container, don't expose this port in production
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: postgres -c shared_buffers=128MB -c max_connections=50
+    networks:
+      - laravel
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  postgres_data:
+
+networks:
+  laravel:
+  api_starter_shared_network:
+    external: true

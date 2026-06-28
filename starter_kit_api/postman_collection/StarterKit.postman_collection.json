@@ -1,0 +1,661 @@
+{
+  "info": {
+    "_postman_id": "d19597db-8383-4be5-ae53-a3236e074813",
+    "name": "ApiStarterKit",
+    "description": "API-based Starter Kit — Admin authentication + role / permission / admin management + location reference data.\n\n## Setup\n1. Set the collection variable `base_url` (default: `http://localhost:8080/api`).\n2. Run **Admin → Auth → Login** with the seeded admin (`admin@example.com` / `password`). The script auto-stores the token in `auth_token`.\n3. All authenticated requests use `{{auth_token}}` via the collection-level Bearer auth.\n\n## Login response (now enriched)\nThe login response carries the authenticated admin's assigned roles + the flattened list of permission names so the frontend can drive UI gating from a single payload:\n```\n{\n  \"data\": {\n    \"token\": \"...\",\n    \"admin\": {\n      \"id\": 1, \"name\": \"...\", \"email\": \"...\",\n      \"roles\":       [ { \"name\": \"Administrator\", \"status_label\": \"Active\" } ],\n      \"permissions\": [ \"roles.view\", \"roles.create\", \"admins.view\", \"locations.view\", ... ]\n    }\n  }\n}\n```\n`GET /admin/profile` returns the exact same `admin` shape.\n\n## OTP flow\n- Hit **Password → Forgot Password** — the OTP is logged to `storage/logs/laravel.log` (since `MAIL_MAILER=log`).\n- Grab the 6-digit OTP from the log and put it in the collection variable `admin_otp`.\n- Hit **Password → Reset Password**.\n\n## Endpoints\n1. Auth: Login, Logout\n2. Password: Forgot, Reset, Change\n3. Profile: View, Update\n4. Roles: List, Create, Show, Update, Delete\n5. Permissions: List (grouped)\n6. Admin Users: List, Create, Show, Update, Delete\n7. Locations: Countries, Country Structure, Top-Level Areas, Country Tree, Area Children, Area Ancestors\n\n## Locations module\nA polymorphic, country-agnostic location hierarchy backed by `staudenmeir/laravel-adjacency-list` (recursive CTEs). Models / migrations are global and usable by any part of the app (frontend, services, etc.). The controller and routes shipped here are **admin-only** (Sanctum + `admin` middleware + `permission:locations.view`).\n\nThe same `admin_areas` table holds every administrative unit below a country (zone / state / division / district / county / upazila / city / …). Each country declares **which levels it uses and in what order** via `country_admin_structures`, so the API works the same for India, Bangladesh, USA, Singapore, and any country added later.\n\nSeeded examples:\n- **India:** Zone → State → District → City\n- **Bangladesh:** Division → District → Upazila → City\n- **USA:** State → County → City\n- **Singapore:** Region → City",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "54919916",
+    "_collection_link": "https://go.postman.co/collection/54919916-d19597db-8383-4be5-ae53-a3236e074813?source=collection_link"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@example.com",
+      "type": "string"
+    },
+    {
+      "key": "admin_password",
+      "value": "password",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_otp",
+      "value": "",
+      "type": "string",
+      "description": "Paste the 6-digit OTP from storage/logs/laravel.log after running Forgot Password"
+    },
+    {
+      "key": "role_id",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated after creating a role via Roles → Create."
+    },
+    {
+      "key": "admin_user_id",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated after creating an admin via Admin Users → Create."
+    },
+    {
+      "key": "country_id",
+      "value": "1",
+      "type": "string",
+      "description": "Country id used by the Locations endpoints. Auto-populated to the first row from Locations → List Countries. Defaults to 1 (India in the seeder)."
+    },
+    {
+      "key": "area_id",
+      "value": "1",
+      "type": "string",
+      "description": "Admin area id used by Locations → Area Children / Ancestors. Auto-populated from Locations → Top-Level Areas. Defaults to 1 (Western Zone in the seeder)."
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "pm.test('Login succeeds', () => pm.response.to.have.status(200));",
+                      "if (json && json.data && json.data.token) {",
+                      "    pm.collectionVariables.set('auth_token', json.data.token);",
+                      "    console.log('auth_token stored.');",
+                      "}",
+                      "pm.test('admin.roles is an array of {name,status_label}', () => {",
+                      "    const roles = json && json.data && json.data.admin && json.data.admin.roles;",
+                      "    pm.expect(roles).to.be.an('array');",
+                      "    if (roles.length > 0) {",
+                      "        pm.expect(Object.keys(roles[0]).sort()).to.eql(['name','status_label']);",
+                      "    }",
+                      "});",
+                      "pm.test('admin.permissions is a flat array of strings', () => {",
+                      "    const perms = json && json.data && json.data.admin && json.data.admin.permissions;",
+                      "    pm.expect(perms).to.be.an('array');",
+                      "    perms.forEach(p => pm.expect(p).to.be.a('string'));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\",\n  \"device_name\": \"postman\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/login",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "login"]
+                },
+                "description": "Issues a Sanctum token for an active admin. Rate-limited: 5 / minute / (IP + email).\n\n**Response (200):**\n```\n{\n  \"success\": true,\n  \"message\": \"Login successful.\",\n  \"data\": {\n    \"token\": \"1|xxxx...\",\n    \"admin\": {\n      \"id\": 1, \"name\": \"Default Admin\", \"email\": \"admin@example.com\",\n      \"user_type\": 1, \"user_type_label\": \"Admin\",\n      \"status\": 1, \"status_label\": \"Active\",\n      \"roles\":       [ { \"name\": \"Administrator\", \"status_label\": \"Active\" } ],\n      \"permissions\": [ \"roles.view\", \"roles.create\", \"roles.update\", \"roles.delete\",\n                       \"admins.view\", \"admins.create\", \"admins.update\", \"admins.delete\",\n                       \"users.view\", \"users.update\" ]\n    }\n  }\n}\n```\n**Other responses:**\n- 422 — Invalid credentials\n- 403 — Account is deactivated, please contact administrator"
+              },
+              "response": []
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/logout",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "logout"]
+                },
+                "description": "Revokes the **current** Sanctum token only."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Password",
+          "item": [
+            {
+              "name": "Forgot Password (issue OTP)",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{admin_email}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/forgot-password",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "forgot-password"]
+                },
+                "description": "Issues a 6-digit OTP (5-minute expiry) and emails it. Rate-limited: 3 / minute / (IP + email).\n\n**Responses:**\n- 200 — OTP sent\n- 422 — \"No admin account found for this email\" / \"An OTP was already sent...\"\n- 403 — Account is deactivated\n\nIn dev (`MAIL_MAILER=log`), the OTP appears in `storage/logs/laravel.log`. Copy it into the `admin_otp` collection variable before running **Reset Password**."
+              },
+              "response": []
+            },
+            {
+              "name": "Reset Password (verify OTP)",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"otp\": \"{{admin_otp}}\",\n  \"password\": \"NewStrongPass!123\",\n  \"password_confirmation\": \"NewStrongPass!123\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/reset-password",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "reset-password"]
+                },
+                "description": "Verifies the OTP, sets the new password, **deletes all OTP rows for this email**, and **revokes ALL Sanctum tokens** for the admin. Rate-limited: 5 / minute / (IP + email).\n\n**Responses:**\n- 200 — Password reset successful\n- 422 — Invalid or expired OTP / No admin account found\n- 403 — Account is deactivated"
+              },
+              "response": []
+            },
+            {
+              "name": "Change Password (authenticated)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"current_password\": \"{{admin_password}}\",\n  \"password\": \"NewStrongPass!123\",\n  \"password_confirmation\": \"NewStrongPass!123\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/change-password",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "change-password"]
+                },
+                "description": "Changes the password for the authenticated admin and **revokes all OTHER Sanctum tokens** (keeps the current token). Requires `current_password`.\n\n**Responses:**\n- 200 — Password changed\n- 422 — current_password wrong / new password must differ"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Profile",
+          "item": [
+            {
+              "name": "View Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/profile",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "profile"]
+                },
+                "description": "Returns the authenticated admin wrapped in `AdminResource`.\n\nResponse shape is identical to the `admin` block of the login response — includes `roles` (name + status_label) and `permissions` (flat array of permission name strings)."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Profile",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Default Admin\",\n  \"email\": \"{{admin_email}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/profile",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "profile"]
+                },
+                "description": "Updates the admin's name and email. Email must be unique across `users` (own email is ignored)."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Permissions",
+          "item": [
+            {
+              "name": "List Permissions (grouped)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/permissions",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "permissions"]
+                },
+                "description": "Returns all permissions grouped by `group` — feeds the role create / edit form.\n\nMiddleware: `permission:roles.view`.\n\n**Response (200):**\n```\n{\n  \"data\": [\n    { \"group\": \"Admins\", \"permissions\": [ {\"id\":5,\"name\":\"admins.create\"}, ... ] },\n    { \"group\": \"Roles\",  \"permissions\": [ {\"id\":1,\"name\":\"roles.create\"}, ... ] },\n    { \"group\": \"Users\",  \"permissions\": [ {\"id\":9,\"name\":\"users.view\"},  ... ] }\n  ]\n}\n```"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Roles",
+          "item": [
+            {
+              "name": "List Roles",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/roles?per_page=15",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "roles"],
+                  "query": [
+                    { "key": "per_page", "value": "15" },
+                    { "key": "name", "value": "", "disabled": true, "description": "Filter by partial name match" },
+                    { "key": "status", "value": "1", "disabled": true, "description": "0 = Deactive, 1 = Active" }
+                  ]
+                },
+                "description": "Paginated list of roles with their permissions.\n\nMiddleware: `permission:roles.view`."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Role",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.id) {",
+                      "    pm.collectionVariables.set('role_id', json.data.id);",
+                      "    console.log('role_id stored.');",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Manager\",\n  \"status\": 1,\n  \"permissions\": [1, 2, 3]\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/roles",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "roles"]
+                },
+                "description": "Create a role with a unique name, a status (0/1), and an array of permission IDs.\n\nMiddleware: `permission:roles.create`.\n\n**Validation:**\n- `name`: required, unique\n- `status`: required, 0 or 1\n- `permissions`: required, non-empty array of valid permission IDs\n\n**Response: 201** with the created role + its permissions."
+              },
+              "response": []
+            },
+            {
+              "name": "Show Role",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/roles/{{role_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "roles", "{{role_id}}"]
+                },
+                "description": "Returns the role with its attached permissions.\n\nMiddleware: `permission:roles.view`."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Role",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Manager Updated\",\n  \"status\": 1,\n  \"permissions\": [1, 2]\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/roles/{{role_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "roles", "{{role_id}}"]
+                },
+                "description": "Update the role's name / status and re-sync its permissions.\n\nMiddleware: `permission:roles.update`.\n\n**Self-protection:** 403 if the authenticated admin currently holds this role (`You cannot edit the role currently assigned to you.`)."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Role",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/roles/{{role_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "roles", "{{role_id}}"]
+                },
+                "description": "Delete the role.\n\nMiddleware: `permission:roles.delete`.\n\n**Blocked when:**\n- 403 — caller holds this role (`You cannot delete the role currently assigned to you.`)\n- 422 — role is still assigned to one or more admins (`This role is currently assigned to N admin(s). Reassign them before deleting.`)"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Admin Users",
+          "item": [
+            {
+              "name": "List Admins",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/admin-users?per_page=15",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "admin-users"],
+                  "query": [
+                    { "key": "per_page", "value": "15" },
+                    { "key": "search", "value": "", "disabled": true, "description": "Match on name or email" },
+                    { "key": "status", "value": "1", "disabled": true, "description": "0 = Deactive, 1 = Active" },
+                    { "key": "role_id", "value": "", "disabled": true, "description": "Filter to admins assigned this role" }
+                  ]
+                },
+                "description": "Paginated list of admin users (`user_type=Admin`) with their role + effective permissions.\n\nMiddleware: `permission:admins.view`."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.id) {",
+                      "    pm.collectionVariables.set('admin_user_id', json.data.id);",
+                      "    console.log('admin_user_id stored.');",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Jane Manager\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"Password!123\",\n  \"password_confirmation\": \"Password!123\",\n  \"status\": 1,\n  \"role_id\": {{role_id}}\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/admin-users",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "admin-users"]
+                },
+                "description": "Create a new admin (sets `user_type=Admin`) and assign a single role.\n\nMiddleware: `permission:admins.create`.\n\n**Validation:**\n- `email` unique on users\n- `password` confirmed + Password::defaults()\n- `status` 0/1\n- `role_id` must reference an **Active** role (422 otherwise)\n\n**Response: 201** with the created admin + role + permissions."
+              },
+              "response": []
+            },
+            {
+              "name": "Show Admin",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/admin-users/{{admin_user_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "admin-users", "{{admin_user_id}}"]
+                },
+                "description": "Returns the admin with their assigned role and a flat array of effective permission names.\n\nMiddleware: `permission:admins.view`."
+              },
+              "response": []
+            },
+            {
+              "name": "Update Admin",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Jane Manager Updated\",\n  \"email\": \"jane@example.com\",\n  \"status\": 1,\n  \"role_id\": {{role_id}}\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/admin-users/{{admin_user_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "admin-users", "{{admin_user_id}}"]
+                },
+                "description": "Update an admin's name / email / status / role. `password` is optional — include `password` + `password_confirmation` to reset it (revokes the target's existing tokens).\n\nMiddleware: `permission:admins.update`.\n\n**Self-protection:** 403 if the authenticated admin is targeting themselves (`You cannot edit your own admin account.`)."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Admin",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/admin-users/{{admin_user_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "admin-users", "{{admin_user_id}}"]
+                },
+                "description": "Hard-delete the admin and revoke all of their Sanctum tokens.\n\nMiddleware: `permission:admins.delete`.\n\n**Self-protection:** 403 if the authenticated admin targets themselves (`You cannot delete your own admin account.`)."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Locations",
+          "description": "Country-agnostic location hierarchy: a polymorphic, self-referencing tree powered by `staudenmeir/laravel-adjacency-list` (recursive CTEs).\n\nAll endpoints share the same protection: `auth:sanctum` + `admin` middleware + `permission:locations.view`. They are **read-only** in Phase 1 — reference data is owned by the seeder (`LocationDataSeeder`).\n\n**Path parameters**\n- `{country}` — `countries.id` (resolved by Laravel route model binding)\n- `{area}` — `admin_areas.id`\n\n**Suggested call flow (cascading dropdowns)**\n1. `GET /admin/locations/countries` → render country picker.\n2. `GET /admin/locations/countries/{country}/structure` → use `structure[i].label` to label each subsequent dropdown (\"Zone\" / \"Division\" / \"State\" depending on country).\n3. `GET /admin/locations/countries/{country}/top-level` → first dropdown options (depth = 1).\n4. On click, `GET /admin/locations/areas/{area}/children` → next dropdown.\n5. Repeat (4) until `children` is empty (leaf).\n6. `GET /admin/locations/areas/{area}/ancestors` → breadcrumb (root → leaf, ordered by depth).\n\n**Performance note:** prefer the cascading flow (`top-level` + `children`) for UI. Use `tree` only when you actually need the full nested hierarchy in one shot — it issues a recursive CTE over all rows for the country.",
+          "item": [
+            {
+              "name": "List Countries",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "pm.test('Returns the envelope shape', () => {",
+                      "    pm.expect(json).to.have.property('success', true);",
+                      "    pm.expect(json).to.have.property('data');",
+                      "});",
+                      "if (json && Array.isArray(json.data) && json.data.length > 0) {",
+                      "    pm.collectionVariables.set('country_id', String(json.data[0].id));",
+                      "    console.log('country_id stored:', json.data[0].id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/locations/countries",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "locations", "countries"]
+                },
+                "description": "Returns all **active** countries ordered by name.\n\nMiddleware: `auth:sanctum`, `admin`, `permission:locations.view`.\n\nThe test script auto-stores the first row's id into the `country_id` collection variable so subsequent requests can use it.\n\n**Response (200):**\n```\n{\n  \"success\": true,\n  \"message\": \"Countries fetched.\",\n  \"data\": [\n    { \"id\": 2, \"iso2\": \"BD\", \"iso3\": \"BGD\", \"name\": \"Bangladesh\",    \"isd_prefix\": \"+880\", \"default_timezone\": \"Asia/Dhaka\",      \"is_active\": true },\n    { \"id\": 1, \"iso2\": \"IN\", \"iso3\": \"IND\", \"name\": \"India\",         \"isd_prefix\": \"+91\",  \"default_timezone\": \"Asia/Kolkata\",    \"is_active\": true },\n    { \"id\": 4, \"iso2\": \"SG\", \"iso3\": \"SGP\", \"name\": \"Singapore\",     \"isd_prefix\": \"+65\",  \"default_timezone\": \"Asia/Singapore\", \"is_active\": true },\n    { \"id\": 3, \"iso2\": \"US\", \"iso3\": \"USA\", \"name\": \"United States\", \"isd_prefix\": \"+1\",   \"default_timezone\": \"America/New_York\", \"is_active\": true }\n  ]\n}\n```\n\n**Other responses:**\n- 401 — missing or invalid token\n- 403 — token lacks `locations.view` permission"
+              },
+              "response": []
+            },
+            {
+              "name": "Country Structure",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/locations/countries/{{country_id}}/structure",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "locations", "countries", "{{country_id}}", "structure"]
+                },
+                "description": "Returns the country plus the ordered list of admin levels it uses. This is the metadata the frontend needs to label each cascading dropdown correctly (\"Zone\", \"Division\", \"State\", …) since the level names vary per country.\n\nMiddleware: `auth:sanctum`, `admin`, `permission:locations.view`.\n\nCache this per session — it never changes during normal use.\n\n**Response (200) — India:**\n```\n{\n  \"success\": true,\n  \"message\": \"Country structure fetched.\",\n  \"data\": {\n    \"id\": 1, \"iso2\": \"IN\", \"iso3\": \"IND\", \"name\": \"India\",\n    \"isd_prefix\": \"+91\", \"default_timezone\": \"Asia/Kolkata\", \"is_active\": true,\n    \"structure\": [\n      { \"depth\": 1, \"level\": \"ZONE\",     \"label\": \"Zone\" },\n      { \"depth\": 2, \"level\": \"STATE\",    \"label\": \"State\" },\n      { \"depth\": 3, \"level\": \"DISTRICT\", \"label\": \"District\" },\n      { \"depth\": 4, \"level\": \"CITY\",     \"label\": \"City\" }\n    ]\n  }\n}\n```\n\n**Other responses:**\n- 404 — country id does not exist\n- 401 / 403 — auth / permission failures"
+              },
+              "response": []
+            },
+            {
+              "name": "Top-Level Areas",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && Array.isArray(json.data) && json.data.length > 0) {",
+                      "    pm.collectionVariables.set('area_id', String(json.data[0].id));",
+                      "    console.log('area_id stored:', json.data[0].id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/locations/countries/{{country_id}}/top-level",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "locations", "countries", "{{country_id}}", "top-level"]
+                },
+                "description": "Returns the country's root areas (depth = 1) — the options for the **first** dropdown.\n\nFor India these are zones; for Bangladesh divisions; for the USA states; for Singapore regions. Use the matching `structure[0].label` for the field heading.\n\nMiddleware: `auth:sanctum`, `admin`, `permission:locations.view`.\n\nThe test script auto-stores the first row's id into `area_id` so the cascading-children request will resolve immediately.\n\n**Response (200) — India:**\n```\n{\n  \"success\": true,\n  \"message\": \"Top-level areas fetched.\",\n  \"data\": [\n    { \"id\": 6, \"parent_id\": null, \"country_id\": 1, \"level\": \"ZONE\", \"level_label\": \"Zone\",\n      \"depth\": 1, \"code\": \"SOUTH\", \"name\": \"Southern Zone\", \"short_name\": null,\n      \"latitude\": null, \"longitude\": null, \"timezone\": null, \"is_active\": true },\n    { \"id\": 1, \"parent_id\": null, \"country_id\": 1, \"level\": \"ZONE\", \"level_label\": \"Zone\",\n      \"depth\": 1, \"code\": \"WEST\",  \"name\": \"Western Zone\",  \"short_name\": null,\n      \"latitude\": null, \"longitude\": null, \"timezone\": null, \"is_active\": true }\n  ]\n}\n```"
+              },
+              "response": []
+            },
+            {
+              "name": "Country Tree (full nested)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/locations/countries/{{country_id}}/tree",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "locations", "countries", "{{country_id}}", "tree"]
+                },
+                "description": "Returns the **entire** nested tree for the country, eager-loaded in one request. Each node carries its level / code / name / depth and a recursive `children` array.\n\nMiddleware: `auth:sanctum`, `admin`, `permission:locations.view`.\n\n**Use sparingly** — this issues a recursive CTE over every row for the country and grows linearly with the dataset. Prefer **Top-Level Areas** + **Area Children** for cascading dropdowns; use **Country Tree** only when the UI genuinely needs the whole hierarchy at once (e.g. a tree picker).\n\n**Response (200) — India (truncated):**\n```\n{\n  \"success\": true,\n  \"message\": \"Country tree fetched.\",\n  \"data\": [\n    {\n      \"id\": 1, \"level\": \"ZONE\", \"level_label\": \"Zone\", \"code\": \"WEST\",\n      \"name\": \"Western Zone\", \"depth\": 1,\n      \"children\": [\n        {\n          \"id\": 2, \"level\": \"STATE\", \"level_label\": \"State\", \"code\": \"MH\",\n          \"name\": \"Maharashtra\", \"depth\": 2,\n          \"children\": [\n            {\n              \"id\": 3, \"level\": \"DISTRICT\", \"level_label\": \"District\", \"code\": \"PUNE\",\n              \"name\": \"Pune\", \"depth\": 3,\n              \"children\": [\n                { \"id\": 4, \"level\": \"CITY\", \"level_label\": \"City\", \"code\": \"PUNE-CITY\",\n                  \"name\": \"Pune City\", \"depth\": 4, \"children\": [] }\n              ]\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}\n```"
+              },
+              "response": []
+            },
+            {
+              "name": "Area Children",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/locations/areas/{{area_id}}/children",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "locations", "areas", "{{area_id}}", "children"]
+                },
+                "description": "Returns the **direct** children of the given area (a single level deeper). This is the cascading drill-down request — call it every time the user selects an option in the current dropdown to populate the next one. Empty `data` means the user has reached a leaf node.\n\nMiddleware: `auth:sanctum`, `admin`, `permission:locations.view`.\n\n**Response (200) — children of `Western Zone` (id=1):**\n```\n{\n  \"success\": true,\n  \"message\": \"Child areas fetched.\",\n  \"data\": [\n    { \"id\": 2, \"parent_id\": 1, \"country_id\": 1, \"level\": \"STATE\",\n      \"level_label\": \"State\", \"depth\": 2, \"code\": \"MH\", \"name\": \"Maharashtra\",\n      \"short_name\": null, \"latitude\": null, \"longitude\": null,\n      \"timezone\": null, \"is_active\": true }\n  ]\n}\n```\n\n**Other responses:**\n- 404 — area id does not exist"
+              },
+              "response": []
+            },
+            {
+              "name": "Area Ancestors (breadcrumb)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/locations/areas/{{area_id}}/ancestors",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "locations", "areas", "{{area_id}}", "ancestors"]
+                },
+                "description": "Returns the full chain from the country's root down to (and including) the given area, ordered by depth. Use this to build a breadcrumb on the area detail page.\n\nMiddleware: `auth:sanctum`, `admin`, `permission:locations.view`.\n\nUnder the hood: `AdminArea::ancestorsAndSelf()` via the `staudenmeir/laravel-adjacency-list` recursive-CTE trait.\n\n**Response (200) — ancestors of `Pune City` (id=4):**\n```\n{\n  \"success\": true,\n  \"message\": \"Ancestor chain fetched.\",\n  \"data\": [\n    { \"id\": 1, \"parent_id\": null, \"country_id\": 1, \"level\": \"ZONE\",\n      \"level_label\": \"Zone\",     \"depth\": 1, \"code\": \"WEST\",      \"name\": \"Western Zone\",\n      \"short_name\": null, \"latitude\": null, \"longitude\": null,\n      \"timezone\": null, \"is_active\": true },\n    { \"id\": 2, \"parent_id\": 1, \"country_id\": 1, \"level\": \"STATE\",\n      \"level_label\": \"State\",    \"depth\": 2, \"code\": \"MH\",        \"name\": \"Maharashtra\",\n      \"short_name\": null, \"latitude\": null, \"longitude\": null,\n      \"timezone\": null, \"is_active\": true },\n    { \"id\": 3, \"parent_id\": 2, \"country_id\": 1, \"level\": \"DISTRICT\",\n      \"level_label\": \"District\", \"depth\": 3, \"code\": \"PUNE\",      \"name\": \"Pune\",\n      \"short_name\": null, \"latitude\": null, \"longitude\": null,\n      \"timezone\": null, \"is_active\": true },\n    { \"id\": 4, \"parent_id\": 3, \"country_id\": 1, \"level\": \"CITY\",\n      \"level_label\": \"City\",     \"depth\": 4, \"code\": \"PUNE-CITY\", \"name\": \"Pune City\",\n      \"short_name\": null, \"latitude\": null, \"longitude\": null,\n      \"timezone\": null, \"is_active\": true }\n  ]\n}\n```"
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

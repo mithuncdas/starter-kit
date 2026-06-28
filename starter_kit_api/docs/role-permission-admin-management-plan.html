@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role / Permission / Admin Management — Implementation Plan</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --panel-2: #111827;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-2: #a78bfa;
+            --good: #34d399;
+            --warn: #fbbf24;
+            --danger: #f87171;
+            --border: #334155;
+            --code-bg: #0b1220;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+        header {
+            padding: 28px 32px;
+            background: linear-gradient(135deg, #1e293b 0%, #312e81 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 28px;
+        }
+        header h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.02em; }
+        header p { margin: 0; color: var(--muted); }
+        .meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+        .pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(56,189,248,0.12); color: var(--accent);
+            border: 1px solid rgba(56,189,248,0.3);
+            padding: 4px 10px; border-radius: 999px; font-size: 12px;
+        }
+        h2 {
+            font-size: 20px; margin: 32px 0 12px;
+            padding-bottom: 8px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+        }
+        h2 .num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 8px;
+            background: var(--accent); color: #0b1220; font-size: 14px; font-weight: 700;
+        }
+        h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent-2); }
+        .card {
+            background: var(--panel); border: 1px solid var(--border);
+            border-radius: 12px; padding: 18px 20px; margin: 12px 0;
+        }
+        code, pre {
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+            font-size: 13px;
+        }
+        code { background: var(--code-bg); color: #f8fafc; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); }
+        pre {
+            background: var(--code-bg); color: #f8fafc; padding: 16px;
+            border: 1px solid var(--border); border-radius: 10px;
+            overflow-x: auto; margin: 8px 0;
+        }
+        pre code { background: transparent; border: 0; padding: 0; }
+        ul, ol { padding-left: 22px; }
+        li { margin: 4px 0; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 12px 0;
+            background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+        }
+        th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+        th { background: #1f2937; color: var(--accent); font-weight: 600; }
+        tr:last-child td { border-bottom: 0; }
+        .method {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-weight: 700; font-size: 11px;
+        }
+        .m-post { background: rgba(52,211,153,0.15); color: var(--good); }
+        .m-get  { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .m-put  { background: rgba(251,191,36,0.15); color: var(--warn); }
+        .m-del  { background: rgba(248,113,113,0.15); color: var(--danger); }
+        .note { border-left: 4px solid var(--accent); padding-left: 14px; color: var(--muted); margin: 10px 0; }
+        .warn-box { border-left: 4px solid var(--warn); padding-left: 14px; color: #fde68a; margin: 10px 0; }
+        .danger-box { border-left: 4px solid var(--danger); padding-left: 14px; color: #fecaca; margin: 10px 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+        .check { color: var(--good); }
+        .flow {
+            background: var(--panel-2); border: 1px dashed var(--border); border-radius: 10px;
+            padding: 14px; font-family: monospace; white-space: pre; overflow-x: auto;
+            color: #cbd5e1; font-size: 13px;
+        }
+        .tag {
+            display: inline-block; padding: 1px 7px; border-radius: 4px;
+            font-size: 11px; font-weight: 600; margin-left: 6px;
+        }
+        .tag-new   { background: rgba(167,139,250,0.18); color: var(--accent-2); }
+        .tag-edit  { background: rgba(251,191,36,0.18); color: var(--warn); }
+        .tag-keep  { background: rgba(148,163,184,0.18); color: var(--muted); }
+        footer { color: var(--muted); margin-top: 36px; font-size: 12px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <header>
+        <h1>Role / Permission / Admin Management — Implementation Plan</h1>
+        <p>Adds <strong>Spatie Laravel Permission v7</strong> for role + permission management, a seeded permission catalog organized by <strong>group</strong>, role <strong>status</strong> (Active / Deactive), and a full <strong>Admin Management CRUD</strong> — all gated by <code>Spatie\Permission\Middleware\PermissionMiddleware</code> at the route level. Builds on top of the existing admin auth foundation (<a href="admin-auth-plan.html">see admin-auth-plan.html</a>).</p>
+        <div class="meta">
+            <span class="pill">Laravel 13</span>
+            <span class="pill">PHP 8.4</span>
+            <span class="pill">Sanctum 4</span>
+            <span class="pill">spatie/laravel-permission ^7.4</span>
+            <span class="pill">PHPUnit 12</span>
+        </div>
+    </header>
+
+    <h2><span class="num">1</span> Goals &amp; Scope</h2>
+    <div class="card">
+        <ul>
+            <li>Install + bootstrap <strong>Spatie Laravel Permission v7</strong> on the existing <code>User</code> model (single shared <code>sanctum</code> guard).</li>
+            <li>Extend the published Spatie schema with two custom columns:
+                <ul>
+                    <li><code>permissions.group</code> — string, for UI grouping (e.g. <em>Roles</em>, <em>Admins</em>, <em>Users</em>).</li>
+                    <li><code>roles.status</code> — tinyInteger backed by a <code>RoleStatusEnum</code> (Active / Deactive), mirroring the existing <code>UserStatusEnum</code> pattern.</li>
+                </ul>
+            </li>
+            <li>Seed the <strong>full permission catalog</strong> via a dedicated <code>PermissionSeeder</code>, grouped by feature area (idempotent — safe to re-run after each release).</li>
+            <li>Role management endpoints: <strong>list, create, show, update, delete</strong> — create assigns a name, status, and a set of permissions.</li>
+            <li>Admin management endpoints: <strong>list, create, show, update, delete</strong> — each admin gets exactly one role.</li>
+            <li>Hard self-protection rules:
+                <ul>
+                    <li>An admin <strong>cannot edit or delete their own admin record</strong>.</li>
+                    <li>An admin <strong>cannot edit or delete the role currently assigned to themselves</strong>.</li>
+                </ul>
+            </li>
+            <li><strong>Every role is treated equally</strong> &mdash; there is <em>no</em> "Super Admin" bypass, no hard-coded role name, no <code>Gate::before</code> shortcut. Access to any feature is determined <strong>only</strong> by the permissions assigned to the role(s) the admin holds. To grant an admin "full access," assign a role that has every permission attached &mdash; nothing more, nothing less.</li>
+            <li>Every protected route is gated by <code>permission:&lt;name&gt;</code> middleware — never relying on controller-side <code>$user-&gt;can()</code> as the only line of defense.</li>
+            <li>100% test coverage of happy + failure + edge paths for every endpoint.</li>
+        </ul>
+    </div>
+
+    <h2><span class="num">2</span> Package Already Installed</h2>
+    <div class="card">
+        <p>Nothing to install or publish &mdash; this is already done in the repo:</p>
+        <ul>
+            <li><code>spatie/laravel-permission ^7.4</code> &mdash; present in <code>composer.json</code>.</li>
+            <li><code>config/permission.php</code> &mdash; already published.</li>
+            <li><code>database/migrations/2026_05_17_172102_create_permission_tables.php</code> &mdash; already published.</li>
+        </ul>
+        <p>The only work in this area is to <strong>edit the existing published migration</strong> (see §3) and update <code>config/permission.php</code> to point at our custom models (see §5).</p>
+
+        <h3>config/permission.php &mdash; values we rely on</h3>
+        <ul>
+            <li><code>models.permission</code>   = <code>App\Models\Permission</code> <span class="tag tag-new">override</span> &mdash; we extend Spatie's <code>Permission</code> to declare <code>group</code> as fillable.</li>
+            <li><code>models.role</code>         = <code>App\Models\Role</code> <span class="tag tag-new">override</span> &mdash; we extend Spatie's <code>Role</code> to declare <code>status</code> as fillable &amp; cast it.</li>
+            <li><code>teams</code>               = <code>false</code> &mdash; single-tenant.</li>
+            <li><code>cache.expiration_time</code> stays default (24h). Every write path calls <code>app(PermissionRegistrar::class)-&gt;forgetCachedPermissions()</code>.</li>
+        </ul>
+    </div>
+
+    <h2><span class="num">3</span> Database Changes</h2>
+    <div class="card">
+        <h3>Edit the existing Spatie migration <span class="tag tag-edit">edit</span></h3>
+        <p>File: <code>database/migrations/2026_05_17_172102_create_permission_tables.php</code></p>
+        <p>Inside the <code>Schema::create($tableNames['permissions'], ...)</code> closure, add:</p>
+<pre><code>$table->string('group')->nullable()->index();   // e.g. "Roles", "Admins", "Users"</code></pre>
+        <p>Inside the <code>Schema::create($tableNames['roles'], ...)</code> closure, add:</p>
+<pre><code>$table->tinyInteger('status')
+    ->default(\App\Enums\RoleStatusEnum::Active->value)
+    ->index();</code></pre>
+        <p class="warn-box">Safe to edit because nothing has shipped &mdash; we'll <code>php artisan migrate:fresh --seed</code> in the container. Once this is in production, future status/group changes must be a new migration.</p>
+
+        <h3>No other migrations required</h3>
+        <p>Spatie's pivot tables (<code>model_has_roles</code>, <code>model_has_permissions</code>, <code>role_has_permissions</code>) are reused as-is.</p>
+    </div>
+
+    <h2><span class="num">4</span> Enums</h2>
+    <div class="card">
+        <h3>App\Enums\RoleStatusEnum <span class="tag tag-new">new</span></h3>
+<pre><code>case Deactive = 0;
+case Active   = 1;</code></pre>
+        <p style="margin:0;color:var(--muted);font-size:13px;">Same shape as <code>UserStatusEnum</code> &mdash; <code>label()</code>, <code>values()</code>, <code>labels()</code>, <code>options()</code>. Stored as <code>tinyInteger</code>, default <code>1</code> (Active).</p>
+        <p class="note">No <code>PermissionEnum</code> or <code>PermissionGroupEnum</code> &mdash; the catalog of permissions and their group names is defined <strong>directly inside <code>PermissionSeeder</code></strong> (see §6).</p>
+    </div>
+
+    <h2><span class="num">5</span> Model Layer</h2>
+    <div class="card">
+        <h3>App\Models\Role <span class="tag tag-new">new</span> &nbsp;·&nbsp; extends <code>Spatie\Permission\Models\Role</code></h3>
+<pre><code>#[Fillable(['name', 'guard_name', 'status'])]
+class Role extends \Spatie\Permission\Models\Role
+{
+    protected function casts(): array
+    {
+        return ['status' =&gt; RoleStatusEnum::class];
+    }
+
+    public function isActive(): bool { return $this-&gt;status === RoleStatusEnum::Active; }
+
+    /** @param Builder&lt;self&gt; $q */
+    public function scopeActive(Builder $q): void { $q-&gt;where('status', RoleStatusEnum::Active); }
+}</code></pre>
+        <p>Wire-up in <code>config/permission.php</code>: <code>'models' =&gt; ['role' =&gt; \App\Models\Role::class, 'permission' =&gt; \App\Models\Permission::class]</code>.</p>
+        <p class="note">No <code>SUPER_ADMIN</code> constant, no <code>isSuperAdmin()</code> helper &mdash; all roles are equal. Whoever holds <code>roles.delete</code> can delete any role (subject to the self-protection rules in §10); whoever holds <code>admins.delete</code> can delete any admin (except themselves).</p>
+
+        <h3>App\Models\Permission <span class="tag tag-new">new</span> &nbsp;·&nbsp; extends <code>Spatie\Permission\Models\Permission</code></h3>
+<pre><code>#[Fillable(['name', 'guard_name', 'group'])]
+class Permission extends \Spatie\Permission\Models\Permission
+{
+    /** @param Builder&lt;self&gt; $q */
+    public function scopeGrouped(Builder $q): void
+    {
+        $q-&gt;orderBy('group')-&gt;orderBy('name');
+    }
+}</code></pre>
+
+        <h3>App\Models\User <span class="tag tag-edit">edit</span></h3>
+        <ul>
+            <li>Add the <code>Spatie\Permission\Traits\HasRoles</code> trait.</li>
+            <li>Keep the existing <code>isAdmin()</code> (based on <code>user_type</code>) &mdash; orthogonal to role membership.</li>
+        </ul>
+
+        <p class="warn-box"><strong>No <code>Gate::before</code> bypass.</strong> Every <code>permission:&lt;name&gt;</code> middleware check runs against the actual <code>role_has_permissions</code> table for every admin &mdash; no role is special-cased. To give an admin total access, assign them a role that has every permission attached.</p>
+    </div>
+
+    <h2><span class="num">6</span> Permission Catalog (Seeder)</h2>
+    <div class="card">
+        <h3>Database\Seeders\PermissionSeeder <span class="tag tag-new">new</span></h3>
+        <p>Permission names &amp; their groups are written <strong>directly in the seeder</strong> as a plain array &mdash; no enum indirection. Add a new group / permission here when a new feature lands, then re-run the seeder.</p>
+<pre><code>class PermissionSeeder extends Seeder
+{
+    use WithoutModelEvents;
+
+    public function run(): void
+    {
+        $groups = [
+            'Roles' =&gt; [
+                'roles.view',
+                'roles.create',
+                'roles.update',
+                'roles.delete',
+            ],
+            'Admins' =&gt; [
+                'admins.view',
+                'admins.create',
+                'admins.update',
+                'admins.delete',
+            ],
+            'Users' =&gt; [
+                'users.view',
+                'users.update',
+            ],
+            // add a new group / permissions here as features grow
+        ];
+
+        foreach ($groups as $group =&gt; $names) {
+            foreach ($names as $name) {
+                Permission::updateOrCreate(
+                    ['name' =&gt; $name, 'guard_name' =&gt; 'sanctum'],
+                    ['group' =&gt; $group],
+                );
+            }
+        }
+
+        app(PermissionRegistrar::class)-&gt;forgetCachedPermissions();
+    }
+}</code></pre>
+        <p class="note"><strong>Idempotent</strong> &mdash; re-running the seeder after a release picks up any newly added rows and updates the <code>group</code> on existing ones without duplicating.</p>
+
+        <h3>Database\Seeders\RoleSeeder <span class="tag tag-new">new</span></h3>
+        <p>Seeds one <strong>Administrator</strong> role with <em>every</em> permission attached &mdash; purely so the default seeded admin has a working starting point. This role has <strong>no special powers in code</strong>; it is just an ordinary role whose row in <code>role_has_permissions</code> happens to cover the whole catalog. Once the system is running, an admin with <code>roles.update</code> can rename it, remove permissions, or delete it like any other role.</p>
+<pre><code>class RoleSeeder extends Seeder
+{
+    use WithoutModelEvents;
+
+    public function run(): void
+    {
+        $role = Role::updateOrCreate(
+            ['name' =&gt; 'Administrator', 'guard_name' =&gt; 'sanctum'],
+            ['status' =&gt; RoleStatusEnum::Active],
+        );
+
+        // Attach every seeded permission. Re-runs stay in sync.
+        $role-&gt;syncPermissions(Permission::all());
+
+        app(PermissionRegistrar::class)-&gt;forgetCachedPermissions();
+    }
+}</code></pre>
+
+        <h3>Database\Seeders\DatabaseSeeder <span class="tag tag-edit">edit</span></h3>
+        <p>Call the new seeders in order, then assign the seeded admin to the Administrator role:</p>
+<pre><code>$this-&gt;call([PermissionSeeder::class, RoleSeeder::class]);
+
+$admin = User::query()-&gt;updateOrCreate(/* existing default admin */);
+$admin-&gt;syncRoles(['Administrator']);</code></pre>
+    </div>
+
+    <h2><span class="num">7</span> Folder Structure (delta)</h2>
+    <div class="card">
+<pre><code>app/
+├── Enums/
+│   └── RoleStatusEnum.php            <span class="tag tag-new">new</span>
+├── Exceptions/
+│   ├── CannotModifySelfException.php       <span class="tag tag-new">new</span>
+│   ├── CannotModifyOwnRoleException.php    <span class="tag tag-new">new</span>
+│   └── RoleStillInUseException.php         <span class="tag tag-new">new</span>
+├── Http/
+│   ├── Controllers/Admin/
+│   │   ├── RoleController.php          <span class="tag tag-new">new</span>
+│   │   ├── PermissionController.php    <span class="tag tag-new">new</span>  (read-only — list grouped)
+│   │   └── AdminUserController.php     <span class="tag tag-new">new</span>
+│   ├── Requests/Admin/
+│   │   ├── Role/StoreRoleRequest.php       <span class="tag tag-new">new</span>
+│   │   ├── Role/UpdateRoleRequest.php      <span class="tag tag-new">new</span>
+│   │   ├── AdminUser/StoreAdminUserRequest.php  <span class="tag tag-new">new</span>
+│   │   └── AdminUser/UpdateAdminUserRequest.php <span class="tag tag-new">new</span>
+│   └── Resources/Admin/
+│       ├── RoleResource.php            <span class="tag tag-new">new</span>
+│       ├── PermissionResource.php      <span class="tag tag-new">new</span>
+│       ├── GroupedPermissionResource.php <span class="tag tag-new">new</span>
+│       └── AdminUserResource.php       <span class="tag tag-new">new</span>
+├── Models/
+│   ├── Role.php                        <span class="tag tag-new">new</span>
+│   └── Permission.php                  <span class="tag tag-new">new</span>
+└── Services/Admin/
+    ├── RoleService.php                 <span class="tag tag-new">new</span>
+    └── AdminUserService.php            <span class="tag tag-new">new</span>
+
+database/seeders/
+├── PermissionSeeder.php                <span class="tag tag-new">new</span>
+└── RoleSeeder.php                      <span class="tag tag-new">new</span>
+</code></pre>
+    </div>
+
+    <h2><span class="num">8</span> Middleware Wiring</h2>
+    <div class="card">
+        <p>Register Spatie's middleware aliases in <code>bootstrap/app.php</code> next to the existing <code>admin</code> alias:</p>
+<pre><code>$middleware-&gt;alias([
+    'admin'              =&gt; \App\Http\Middleware\EnsureAdmin::class,
+    'role'               =&gt; \Spatie\Permission\Middleware\RoleMiddleware::class,
+    'permission'         =&gt; \Spatie\Permission\Middleware\PermissionMiddleware::class,
+    'role_or_permission' =&gt; \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+]);</code></pre>
+        <p>Spatie throws <code>UnauthorizedException</code> on failure — register a renderer so it returns our standard JSON shape instead of HTML:</p>
+<pre><code>// bootstrap/app.php withExceptions()
+$exceptions-&gt;render(function (UnauthorizedException $e, Request $request) {
+    return (new class { use ApiResponder; })-&gt;error('You do not have permission to perform this action.', 403);
+});</code></pre>
+        <p class="note">Guard name passed to <code>permission:</code> middleware must match the guard used at <code>createToken()</code> time — Sanctum issues against the <code>sanctum</code> guard, so all seeded permissions/roles use <code>guard_name =&gt; 'sanctum'</code>.</p>
+    </div>
+
+    <h2><span class="num">9</span> API Endpoints</h2>
+
+    <h3>9.1 Roles</h3>
+    <table>
+        <thead><tr><th>Method</th><th>URI</th><th>Middleware</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td><span class="method m-get">GET</span></td><td>/api/admin/roles</td><td>auth:sanctum, admin, permission:roles.view</td><td>Paginated list (filters: name, status)</td></tr>
+            <tr><td><span class="method m-post">POST</span></td><td>/api/admin/roles</td><td>auth:sanctum, admin, permission:roles.create</td><td>Create role + sync permissions</td></tr>
+            <tr><td><span class="method m-get">GET</span></td><td>/api/admin/roles/{role}</td><td>auth:sanctum, admin, permission:roles.view</td><td>Show role with permissions</td></tr>
+            <tr><td><span class="method m-put">PUT</span></td><td>/api/admin/roles/{role}</td><td>auth:sanctum, admin, permission:roles.update</td><td>Update name/status + re-sync permissions</td></tr>
+            <tr><td><span class="method m-del">DELETE</span></td><td>/api/admin/roles/{role}</td><td>auth:sanctum, admin, permission:roles.delete</td><td>Delete role (if no admins still attached)</td></tr>
+        </tbody>
+    </table>
+
+    <h3>9.2 Permissions</h3>
+    <table>
+        <thead><tr><th>Method</th><th>URI</th><th>Middleware</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td><span class="method m-get">GET</span></td><td>/api/admin/permissions</td><td>auth:sanctum, admin, permission:roles.view</td><td>List all permissions <strong>grouped by <code>group</code></strong> — feeds the role create/edit form</td></tr>
+        </tbody>
+    </table>
+
+    <h3>9.3 Admin Users</h3>
+    <table>
+        <thead><tr><th>Method</th><th>URI</th><th>Middleware</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td><span class="method m-get">GET</span></td><td>/api/admin/admin-users</td><td>auth:sanctum, admin, permission:admins.view</td><td>Paginated list (filters: name/email, status, role)</td></tr>
+            <tr><td><span class="method m-post">POST</span></td><td>/api/admin/admin-users</td><td>auth:sanctum, admin, permission:admins.create</td><td>Create admin (user_type=Admin) + assign single role</td></tr>
+            <tr><td><span class="method m-get">GET</span></td><td>/api/admin/admin-users/{user}</td><td>auth:sanctum, admin, permission:admins.view</td><td>Show admin with role + effective permissions</td></tr>
+            <tr><td><span class="method m-put">PUT</span></td><td>/api/admin/admin-users/{user}</td><td>auth:sanctum, admin, permission:admins.update</td><td>Update name/email/status/role (NOT self)</td></tr>
+            <tr><td><span class="method m-del">DELETE</span></td><td>/api/admin/admin-users/{user}</td><td>auth:sanctum, admin, permission:admins.delete</td><td>Delete admin (NOT self, NOT last Super Admin)</td></tr>
+        </tbody>
+    </table>
+
+    <div class="note">All three groups are nested inside the existing <code>Route::prefix('admin')-&gt;name('admin.')-&gt;middleware(['auth:sanctum', 'admin'])</code> block — the per-route <code>permission:</code> middleware is added <em>on top of</em> the existing auth + admin gate, not as a replacement.</div>
+
+    <h2><span class="num">10</span> Self-Protection Rules</h2>
+    <div class="card">
+        <p>Enforced in the <em>service</em> layer (so the rule holds regardless of which controller path reaches it). Controllers translate the exception to an HTTP response.</p>
+        <table>
+            <thead><tr><th>Action</th><th>Blocked when…</th><th>Status</th><th>Exception</th></tr></thead>
+            <tbody>
+                <tr><td>Update admin user</td><td><code>$target-&gt;id === $request-&gt;user()-&gt;id</code></td><td>403</td><td><code>CannotModifySelfException</code></td></tr>
+                <tr><td>Delete admin user</td><td><code>$target-&gt;id === $request-&gt;user()-&gt;id</code></td><td>403</td><td><code>CannotModifySelfException</code></td></tr>
+                <tr><td>Update role</td><td><code>$request-&gt;user()-&gt;hasRole($role-&gt;name)</code></td><td>403</td><td><code>CannotModifyOwnRoleException</code></td></tr>
+                <tr><td>Delete role</td><td><code>$request-&gt;user()-&gt;hasRole($role-&gt;name)</code></td><td>403</td><td><code>CannotModifyOwnRoleException</code></td></tr>
+                <tr><td><strong>Delete role</strong></td><td><strong>role is attached to <em>any</em> user (count &gt; 0)</strong></td><td><strong>422</strong></td><td><strong><code>RoleStillInUseException</code></strong></td></tr>
+            </tbody>
+        </table>
+        <p class="danger-box">"Cannot edit own role" applies to the role the <em>current admin is assigned to</em>. They can still create new roles and assign other admins to different roles. The intent is: don't let an admin lock themselves out by stripping permissions from their own role mid-session.</p>
+        <p class="danger-box"><strong>"Cannot delete a role still in use"</strong> &mdash; a role can be deleted <em>only</em> after every admin assigned to it has been moved to a different role (or removed). The service performs <code>$role-&gt;users()-&gt;count()</code> before delete; if non-zero, it throws <code>RoleStillInUseException</code> &rarr; 422 with the message <em>"This role is currently assigned to N admin(s). Reassign them before deleting."</em></p>
+    </div>
+
+    <h2><span class="num">11</span> Validation Rules (summary)</h2>
+    <table>
+        <thead><tr><th>Request</th><th>Rules</th></tr></thead>
+        <tbody>
+            <tr>
+                <td>StoreRoleRequest</td>
+                <td>
+                    name: required|string|max:120|unique:roles,name<br>
+                    status: required|integer|in:0,1<br>
+                    permissions: required|array|min:1<br>
+                    permissions.*: integer|exists:permissions,id
+                </td>
+            </tr>
+            <tr>
+                <td>UpdateRoleRequest</td>
+                <td>
+                    name: required|string|max:120|unique:roles,name,{role.id}<br>
+                    status: required|integer|in:0,1<br>
+                    permissions: required|array|min:1<br>
+                    permissions.*: integer|exists:permissions,id
+                </td>
+            </tr>
+            <tr>
+                <td>StoreAdminUserRequest</td>
+                <td>
+                    name: required|string|max:150<br>
+                    email: required|email|unique:users,email<br>
+                    password: required|confirmed|Password::default()<br>
+                    status: required|integer|in:0,1<br>
+                    role_id: required|integer|exists:roles,id  &nbsp;(must be Active role)
+                </td>
+            </tr>
+            <tr>
+                <td>UpdateAdminUserRequest</td>
+                <td>
+                    name: required|string|max:150<br>
+                    email: required|email|unique:users,email,{user.id}<br>
+                    password: nullable|confirmed|Password::default()  &nbsp;(optional reset)<br>
+                    status: required|integer|in:0,1<br>
+                    role_id: required|integer|exists:roles,id
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2><span class="num">12</span> Controller / Service Sketches</h2>
+
+    <div class="card">
+        <h3>RoleController (selected)</h3>
+<pre><code>public function store(StoreRoleRequest $request): JsonResponse
+{
+    $role = $this-&gt;roleService-&gt;create($request-&gt;validated());
+    return $this-&gt;success(data: RoleResource::make($role), message: 'Role created.', status: 201);
+}
+
+public function update(UpdateRoleRequest $request, Role $role): JsonResponse
+{
+    try {
+        $role = $this-&gt;roleService-&gt;update($role, $request-&gt;validated(), actor: $request-&gt;user());
+    } catch (CannotModifyOwnRoleException $e) {
+        return $this-&gt;error($e-&gt;getMessage(), 403);
+    }
+    return $this-&gt;success(data: RoleResource::make($role-&gt;load('permissions')), message: 'Role updated.');
+}</code></pre>
+
+        <h3>RoleService (rules in one place)</h3>
+<pre><code>public function update(Role $role, array $data, User $actor): Role
+{
+    if ($actor-&gt;hasRole($role-&gt;name)) {
+        throw new CannotModifyOwnRoleException(...);
+    }
+
+    DB::transaction(function () use ($role, $data) {
+        $role-&gt;fill(['name' =&gt; $data['name'], 'status' =&gt; $data['status']])-&gt;save();
+        $role-&gt;syncPermissions(Permission::whereIn('id', $data['permissions'])-&gt;get());
+    });
+
+    app(PermissionRegistrar::class)-&gt;forgetCachedPermissions();
+    return $role-&gt;refresh();
+}</code></pre>
+
+        <h3>AdminUserService (delete)</h3>
+<pre><code>public function delete(User $target, User $actor): void
+{
+    if ($target-&gt;id === $actor-&gt;id) {
+        throw new CannotModifySelfException(...);
+    }
+
+    $target-&gt;tokens()-&gt;delete();   // revoke any sessions the target had
+    $target-&gt;delete();
+}</code></pre>
+    </div>
+
+    <h2><span class="num">13</span> Resources (response shapes)</h2>
+    <div class="card">
+<pre><code>// RoleResource
+{ id, name, status: 1, status_label: "Active",
+  permissions: [ { id, name, group } ],
+  created_at, updated_at }
+
+// GroupedPermissionResource (for the role form)
+[
+  { "group": "Roles",  "permissions": [ {id,name}, ... ] },
+  { "group": "Admins", "permissions": [ {id,name}, ... ] },
+  { "group": "Users",  "permissions": [ {id,name}, ... ] }
+]
+
+// AdminUserResource
+{ id, name, email, status: 1, status_label: "Active",
+  role: { id, name, status },
+  permissions: ["roles.view","roles.create", ...],   // flattened from role
+  created_at, updated_at }</code></pre>
+        <p class="note">All wrapped via <code>ApiResponder::success()</code> &mdash; never returned bare.</p>
+    </div>
+
+    <h2><span class="num">13a</span> Authenticated Response (Login + Profile) <span class="tag tag-edit">edit</span></h2>
+    <div class="card">
+        <p>The existing <code>AdminResource</code> ([app/Http/Resources/Admin/AdminResource.php](../app/Http/Resources/Admin/AdminResource.php)) is extended to include the authenticated admin's <strong>assigned roles</strong> and their <strong>aggregated effective permissions</strong>, so the frontend can drive its UI gating from a single payload returned by both <code>POST /api/admin/login</code> and <code>GET /api/admin/profile</code>.</p>
+
+        <h3>New shape</h3>
+<pre><code>// AdminResource
+{
+  "id": 1,
+  "name": "Default Admin",
+  "email": "admin@example.com",
+  "user_type": 1,
+  "user_type_label": "Admin",
+  "status": 1,
+  "status_label": "Active",
+  "email_verified_at": "17/05/2026 10:23 AM",
+  "created_at": "17/05/2026 10:00 AM",
+
+  "roles": [
+    { "name": "Administrator", "status_label": "Active" }
+  ],
+  "permissions": [
+    "roles.view",
+    "roles.create",
+    "roles.update",
+    "roles.delete",
+    "admins.view",
+    "admins.create",
+    "admins.update",
+    "admins.delete",
+    "users.view",
+    "users.update"
+  ]
+}</code></pre>
+
+        <h3>Implementation notes</h3>
+        <ul>
+            <li><strong>Eager-load before resolve:</strong> in <code>AdminAuthService::login()</code> and <code>ProfileController::show()</code>, call <code>$user-&gt;load('roles.permissions')</code> before passing the model to <code>AdminResource::make()</code> &mdash; avoids N+1 inside the resource.</li>
+            <li><strong>Roles shape:</strong> emit only <code>name</code> and <code>status_label</code> per role &mdash; the frontend never needs the role id or the raw integer status for session-level checks. Built inline in <code>AdminResource::toArray()</code>:
+<pre><code>'roles' =&gt; $this-&gt;roles-&gt;map(fn (Role $role) =&gt; [
+    'name'         =&gt; $role-&gt;name,
+    'status_label' =&gt; $role-&gt;status-&gt;label(),
+])-&gt;values(),</code></pre>
+            </li>
+            <li><strong>Permissions shape:</strong> a single <em>flat</em> array of permission names &mdash; not grouped, no <code>group</code> field. Easy to <code>includes()</code>-check on the client.
+<pre><code>'permissions' =&gt; $this-&gt;getAllPermissions()-&gt;pluck('name')-&gt;values(),</code></pre>
+            <code>$user-&gt;getAllPermissions()</code> (Spatie helper) returns the union of permissions across all assigned roles + any direct permissions. <strong>Same code path for every admin</strong> &mdash; no role is special-cased.</li>
+            <li><strong>Single source of truth:</strong> Both endpoints return the same <code>AdminResource</code> shape. The frontend persists it on login and re-fetches via <code>GET /profile</code> on app boot / role change.</li>
+        </ul>
+
+        <h3>Login response (full)</h3>
+<pre><code>POST /api/admin/login → 200
+{
+  "success": true,
+  "message": "Login successful.",
+  "data": {
+    "token": "1|xxxxx...",
+    "admin": { ...AdminResource above... }
+  }
+}</code></pre>
+
+        <h3>Profile response</h3>
+<pre><code>GET /api/admin/profile → 200
+{
+  "success": true,
+  "message": "OK",
+  "data": { ...AdminResource above... }
+}</code></pre>
+
+        <p class="note"><strong>AdminUserResource</strong> (used by the <em>admin management</em> CRUD show/list endpoints) keeps its simpler shape &mdash; one assigned role + a flat permission name list &mdash; because that view is for managing <em>other</em> admins, not for driving the current session's UI gating.</p>
+    </div>
+
+    <h2><span class="num">14</span> Flows</h2>
+
+    <div class="card">
+        <h3>Login (response now carries roles + permissions)</h3>
+<div class="flow">POST /api/admin/login { email, password, device_name? }
+   │
+   ├─▶ throttle:admin-login
+   ├─▶ AdminAuthService::login()  (existing — unchanged)
+   │       ├─ find admin, verify password, status check
+   │       └─ $user->createToken(...)
+   ├─▶ $user->load('roles.permissions')               ← NEW: eager-load to avoid N+1
+   ├─▶ AdminResource::make($user)                     ← now emits roles + grouped permissions
+   │       └─ permissions = $user->getAllPermissions() grouped by `group`   (same path for every admin)
+   └─▶ 200 success({ token, admin: AdminResource })</div>
+        <p class="note">Profile view (<code>GET /api/admin/profile</code>) follows the exact same load + resource path so the response shape is identical.</p>
+    </div>
+
+    <div class="card">
+        <h3>Create role</h3>
+<div class="flow">POST /api/admin/roles { name, status, permissions: [id, id, ...] }
+   │
+   ├─▶ auth:sanctum + admin + permission:roles.create
+   ├─▶ StoreRoleRequest validates
+   ├─▶ RoleService::create()
+   │       ├─ Role::create(name, guard_name='sanctum', status)
+   │       └─ $role->syncPermissions(Permission::whereIn('id', ids)->get())
+   ├─▶ PermissionRegistrar::forgetCachedPermissions()
+   └─▶ 201 success({ role: RoleResource })</div>
+    </div>
+
+    <div class="card">
+        <h3>Update role (with self-protection)</h3>
+<div class="flow">PUT /api/admin/roles/{role}
+   │
+   ├─▶ auth:sanctum + admin + permission:roles.update
+   ├─▶ UpdateRoleRequest validates
+   ├─▶ RoleService::update($role, $data, actor=$request->user())
+   │       ├─ if $actor->hasRole($role->name)   → 403 CannotModifyOwnRoleException
+   │       ├─ DB::transaction: update + syncPermissions
+   │       └─ forgetCachedPermissions()
+   └─▶ 200 success({ role: RoleResource })</div>
+    </div>
+
+    <div class="card">
+        <h3>Delete role (with in-use guard)</h3>
+<div class="flow">DELETE /api/admin/roles/{role}
+   │
+   ├─▶ auth:sanctum + admin + permission:roles.delete
+   ├─▶ RoleService::delete($role, actor=$request->user())
+   │       ├─ if $actor->hasRole($role->name)      → 403 CannotModifyOwnRoleException
+   │       ├─ if $role->users()->count() > 0       → 422 RoleStillInUseException
+   │       │     ("This role is currently assigned to N admin(s). Reassign them before deleting.")
+   │       └─ $role->delete()
+   ├─▶ PermissionRegistrar::forgetCachedPermissions()
+   └─▶ 200 success(message: "Role deleted.")</div>
+    </div>
+
+    <div class="card">
+        <h3>Create admin user</h3>
+<div class="flow">POST /api/admin/admin-users { name, email, password, password_confirmation, status, role_id }
+   │
+   ├─▶ auth:sanctum + admin + permission:admins.create
+   ├─▶ StoreAdminUserRequest validates  (role must exist + be Active)
+   ├─▶ AdminUserService::create()
+   │       ├─ User::create(user_type=Admin, status, name, email, password=Hash::make())
+   │       └─ $user->syncRoles([Role::find($role_id)])    ← single role
+   └─▶ 201 success({ admin: AdminUserResource })</div>
+    </div>
+
+    <div class="card">
+        <h3>Delete admin user (with self-protection)</h3>
+<div class="flow">DELETE /api/admin/admin-users/{user}
+   │
+   ├─▶ auth:sanctum + admin + permission:admins.delete
+   ├─▶ AdminUserService::delete($target, actor=$request->user())
+   │       ├─ if $target->id === $actor->id   → 403 CannotModifySelfException
+   │       ├─ $target->tokens()->delete()     ← revoke target's sessions
+   │       └─ $target->delete()
+   └─▶ 200 success(message: "Admin deleted.")</div>
+    </div>
+
+    <h2><span class="num">15</span> Test Plan</h2>
+    <div class="card">
+        <p>Files: <code>tests/Feature/Admin/RoleTest.php</code>, <code>PermissionListTest.php</code>, <code>AdminUserTest.php</code>. Use the existing <code>UserFactory::admin()</code> state plus new helpers <code>->withRole($name)</code> and <code>->withPermissions([...])</code>.</p>
+
+        <h3>Roles</h3>
+        <ul>
+            <li class="check">✓ List roles requires <code>roles.view</code> permission → 403 without it.</li>
+            <li class="check">✓ Create role persists name + status + syncs permissions; cache is forgotten.</li>
+            <li class="check">✓ Create role rejects duplicate name (422).</li>
+            <li class="check">✓ Create role rejects empty permissions array (422).</li>
+            <li class="check">✓ Update role rejects when actor is assigned to that role (403, <code>CannotModifyOwnRoleException</code>).</li>
+            <li class="check">✓ Delete role rejects (422 <code>RoleStillInUseException</code>) when at least one admin is still attached &mdash; even a single assignee blocks the delete.</li>
+            <li class="check">✓ Delete role succeeds after every attached admin has been moved to a different role.</li>
+            <li class="check">✓ After update, the affected admins' effective permissions reflect the new set on the very next request (cache invalidation works).</li>
+        </ul>
+
+        <h3>Permissions</h3>
+        <ul>
+            <li class="check">✓ <code>GET /api/admin/permissions</code> returns permissions grouped by <code>group</code>, alphabetical within each group.</li>
+            <li class="check">✓ Endpoint is gated by <code>permission:roles.view</code> (the role-form consumer always has this).</li>
+            <li class="check">✓ Re-running <code>PermissionSeeder</code> is idempotent (count unchanged, no duplicates; <code>group</code> updates apply when changed in the seeder array).</li>
+        </ul>
+
+        <h3>Authenticated response (login + profile)</h3>
+        <ul>
+            <li class="check">✓ Login response includes <code>admin.roles</code> as an array of objects with <strong>exactly two keys</strong>: <code>name</code> and <code>status_label</code> (no <code>id</code>, no raw <code>status</code>).</li>
+            <li class="check">✓ Login response includes <code>admin.permissions</code> as a <strong>flat array of permission name strings</strong> &mdash; not grouped, no objects, no <code>group</code> key.</li>
+            <li class="check">✓ An admin whose role has every permission attached receives the full catalog of names in <code>permissions</code> &mdash; via the <em>same</em> code path as any other admin (no special-case branch).</li>
+            <li class="check">✓ An admin with a role that has <em>no</em> permissions receives <code>permissions: []</code> (empty array, not <code>null</code>).</li>
+            <li class="check">✓ Changing the admin's role/permissions and re-hitting <code>GET /api/admin/profile</code> reflects the new set on the next request (cache invalidation works end-to-end).</li>
+            <li class="check">✓ <code>GET /api/admin/profile</code> returns the same <code>AdminResource</code> shape as login (assert equality on the resource block).</li>
+            <li class="check">✓ Login + profile responses load roles &amp; permissions <strong>without N+1</strong> &mdash; assert query count is bounded (e.g. <code>DB::enableQueryLog()</code> + count check).</li>
+        </ul>
+
+        <h3>Admin Users</h3>
+        <ul>
+            <li class="check">✓ List/show admins requires <code>admins.view</code>.</li>
+            <li class="check">✓ Create admin sets <code>user_type=Admin</code> + assigns the chosen role + status.</li>
+            <li class="check">✓ Create admin rejects duplicate email (422).</li>
+            <li class="check">✓ Update admin rejects when target is self (403, <code>CannotModifySelfException</code>).</li>
+            <li class="check">✓ Delete admin rejects when target is self (403).</li>
+            <li class="check">✓ Deleting an admin revokes their Sanctum tokens (subsequent requests with that token return 401).</li>
+            <li class="check">✓ Deactivating an admin (<code>status=0</code>) blocks login via existing <code>EnsureAdmin</code> middleware (403 "Account is deactivated…").</li>
+            <li class="check">✓ A regular user (non-admin) hitting any of these routes gets 403 from <code>admin</code> middleware before <code>permission</code> middleware runs.</li>
+            <li class="check">✓ An admin without the required permission gets 403 with our standard JSON shape (the <code>UnauthorizedException</code> renderer).</li>
+            <li class="check">✓ An admin whose role has the relevant permission attached passes the check &mdash; with no role name being special-cased anywhere in the codebase (grep for <code>Super Admin</code>, <code>Gate::before</code>, <code>isSuperAdmin</code> should return zero hits).</li>
+        </ul>
+    </div>
+
+    <h2><span class="num">16</span> Execution Order</h2>
+    <div class="card">
+        <ol>
+            <li>Add enum: <code>RoleStatusEnum</code> (no <code>PermissionEnum</code> / <code>PermissionGroupEnum</code> &mdash; permission names &amp; groups live in <code>PermissionSeeder</code>).</li>
+            <li>Edit the already-published migration <code>2026_05_17_172102_create_permission_tables.php</code> &mdash; add <code>permissions.group</code> and <code>roles.status</code> columns. (Spatie package install &amp; <code>vendor:publish</code> were done up front; no new migration.)</li>
+            <li>Create <code>App\Models\Role</code> + <code>App\Models\Permission</code>; wire them in <code>config/permission.php</code>.</li>
+            <li>Edit <code>User</code> model &mdash; add only the <code>HasRoles</code> trait (no <code>isSuperAdmin</code> helper, no role-name constants).</li>
+            <li>Register Spatie middleware aliases (<code>role</code>, <code>permission</code>, <code>role_or_permission</code>) in <code>bootstrap/app.php</code>.</li>
+            <li>Register <code>UnauthorizedException</code> renderer for the JSON 403 shape.</li>
+            <li>Create custom exceptions: <code>CannotModifySelfException</code>, <code>CannotModifyOwnRoleException</code>, <code>RoleStillInUseException</code>.</li>
+            <li>Write <code>PermissionSeeder</code> (permission name/group catalog inlined as a plain array) + <code>RoleSeeder</code> (seeds one ordinary <strong>Administrator</strong> role with every permission attached &mdash; no special powers in code); update <code>DatabaseSeeder</code> to call them and assign the default admin to the Administrator role.</li>
+            <li>Create Form Requests under <code>App\Http\Requests\Admin\Role\</code> and <code>App\Http\Requests\Admin\AdminUser\</code>.</li>
+            <li>Create Resources: <code>RoleResource</code>, <code>PermissionResource</code>, <code>GroupedPermissionResource</code>, <code>AdminUserResource</code>.</li>
+            <li>Create services: <code>RoleService</code>, <code>AdminUserService</code>.</li>
+            <li>Create controllers: <code>RoleController</code>, <code>PermissionController</code>, <code>AdminUserController</code>.</li>
+            <li>Add routes inside the existing <code>Route::prefix('admin')-&gt;middleware(['auth:sanctum','admin'])</code> block — each guarded by its <code>permission:&lt;name&gt;</code>.</li>
+            <li><strong>Extend <code>AdminResource</code> (§13a)</strong> to include <code>is_super_admin</code>, <code>roles</code>, and grouped <code>permissions</code>. Update <code>AdminAuthService::login()</code> and <code>ProfileController::show()</code> to <code>$user-&gt;load('roles.permissions')</code> before resolving the resource. Both login and profile endpoints now return the same enriched payload.</li>
+            <li>Run <code>php artisan migrate:fresh --seed</code>.</li>
+            <li>Write feature tests covering everything in §15.</li>
+            <li>Run <code>vendor/bin/pint --dirty --format agent</code>.</li>
+            <li>Run <code>php artisan test --compact</code> and verify all green.</li>
+        </ol>
+    </div>
+
+    <h2><span class="num">17</span> Confirmed Decisions</h2>
+    <div class="card">
+        <p style="margin-top:0;color:var(--good);">All four points below are <strong>locked in</strong> &mdash; the implementation must follow these rules. Re-open only with explicit approval.</p>
+        <ul>
+            <li class="check">✓ <strong>Single role per admin.</strong> Each admin is assigned <em>exactly one</em> role. Request payloads use scalar <code>role_id</code> (not an array). Persisted via <code>$user-&gt;syncRoles([$role])</code> &mdash; <code>syncRoles</code> (not <code>assignRole</code>) so that updating an admin's role replaces the previous one atomically.</li>
+            <li class="check">✓ <strong>Hard delete admins (no SoftDeletes).</strong> <code>$target-&gt;tokens()-&gt;delete()</code> then <code>$target-&gt;delete()</code>. No <code>deleted_at</code> column, no <code>SoftDeletes</code> trait on the <code>User</code> model.</li>
+            <li class="check">✓ <strong>Deactive role behavior.</strong> A role with <code>status=Deactive</code> keeps working for every admin already assigned to it &mdash; <strong>no</strong> automatic revocation, no permission stripping. It is only excluded from the <em>selectable list</em> when creating or updating an admin. Validation on <code>StoreAdminUserRequest</code> / <code>UpdateAdminUserRequest</code> enforces <code>role_id</code> must reference an <code>Active</code> role (see §11). Status changes stay admin-driven, never implicit.</li>
+            <li class="check">✓ <strong>Permission groups stay in <code>PermissionSeeder</code>.</strong> Starter set: <em>Roles</em>, <em>Admins</em>, <em>Users</em>. When a new feature module lands, add its group + permission names directly to the <code>$groups</code> array in <code>PermissionSeeder</code> and re-run the seeder &mdash; no enum, no separate config file.</li>
+        </ul>
+    </div>
+
+    <footer>
+        Plan generated 2026-05-17 · api-based-project-start-ki-advanced · companion to <a href="admin-auth-plan.html" style="color:var(--accent);">admin-auth-plan.html</a>
+    </footer>
+</div>
+</body>
+</html>

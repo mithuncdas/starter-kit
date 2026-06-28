@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Location Management — Integration Plan</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #111827;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #fbbf24;
+    --ok: #4ade80;
+    --warn: #f97316;
+    --border: #334155;
+    --code-bg: #0b1220;
+    --code-text: #d1d5db;
+    --keyword: #c084fc;
+    --string: #86efac;
+    --comment: #64748b;
+    --number: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px 96px;
+  }
+  header {
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+  }
+  header h1 {
+    margin: 0 0 8px;
+    font-size: 32px;
+    color: #fff;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .badge.accent { color: var(--accent); border-color: var(--accent); }
+  nav.toc {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 32px;
+  }
+  nav.toc h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+  }
+  nav.toc ol {
+    margin: 0;
+    padding-left: 20px;
+    columns: 2;
+  }
+  nav.toc a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  nav.toc a:hover { text-decoration: underline; }
+  h2 {
+    color: #fff;
+    margin-top: 48px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 24px;
+  }
+  h3 {
+    color: var(--accent-2);
+    margin-top: 32px;
+    font-size: 18px;
+  }
+  h4 {
+    color: var(--accent);
+    margin-top: 24px;
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+  p { color: var(--text); }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    color: var(--accent-2);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--code-text);
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+  .filepath {
+    display: inline-block;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: var(--panel-2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    background: var(--panel);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  th {
+    background: var(--panel-2);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  tr:last-child td { border-bottom: none; }
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(56, 189, 248, 0.08);
+    padding: 12px 16px;
+    margin: 16px 0;
+    border-radius: 4px;
+  }
+  .callout.warn {
+    border-color: var(--warn);
+    background: rgba(249, 115, 22, 0.08);
+  }
+  .callout.ok {
+    border-color: var(--ok);
+    background: rgba(74, 222, 128, 0.08);
+  }
+  .callout strong { color: #fff; }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 720px) {
+    nav.toc ol { columns: 1; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  .step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    margin: 16px 0;
+    padding: 14px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .step-num {
+    flex: 0 0 32px;
+    height: 32px;
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 14px;
+  }
+  .step-body { flex: 1; }
+  .step-body h4 { margin-top: 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  .ascii-tree {
+    background: var(--code-bg);
+    padding: 16px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    color: var(--code-text);
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Location Management — Integration Plan</h1>
+  <div class="sub">A polymorphic, SaaS-grade location hierarchy for arbitrary countries (India, Bangladesh, USA, Singapore, &hellip;)</div>
+  <div class="meta">
+    <span class="badge accent">Laravel 13</span>
+    <span class="badge accent">PHP 8.4</span>
+    <span class="badge accent">PostgreSQL</span>
+    <span class="badge">staudenmeir/laravel-adjacency-list</span>
+    <span class="badge">Sanctum API</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#overview">Overview &amp; Goals</a></li>
+    <li><a href="#schema">Final Schema (5 tables)</a></li>
+    <li><a href="#package">Package Install</a></li>
+    <li><a href="#migrations">Migrations</a></li>
+    <li><a href="#models">Models</a></li>
+    <li><a href="#seeders">Seeders</a></li>
+    <li><a href="#resources">API Resources</a></li>
+    <li><a href="#controllers">Controllers &amp; Routes</a></li>
+    <li><a href="#frontend">Frontend Integration</a></li>
+    <li><a href="#order">Step-by-Step Order</a></li>
+    <li><a href="#tests">Tests</a></li>
+    <li><a href="#future">Future Extensions</a></li>
+  </ol>
+</nav>
+
+<!-- ================= OVERVIEW ================= -->
+<h2 id="overview">1. Overview &amp; Goals</h2>
+
+<p>
+  Build a <strong>country-agnostic location hierarchy</strong> usable by any country
+  in the world. The original schema (country &rarr; zone &rarr; state &rarr; district &rarr; city)
+  is too rigid: India has zones &amp; states, Bangladesh has divisions &amp; upazilas, Singapore is
+  effectively flat, USA has counties. We will collapse everything below <em>country</em> into a single
+  self-referencing polymorphic table and use the
+  <code>staudenmeir/laravel-adjacency-list</code> package to traverse it with recursive CTEs.
+</p>
+
+<div class="grid-2">
+  <div>
+    <h4>In Scope</h4>
+    <ul>
+      <li>Reference data tables (countries + admin areas)</li>
+      <li>Seeders for India, Bangladesh, USA, Singapore as proofs</li>
+      <li>Read-only REST API for frontend lists &amp; cascading dropdowns</li>
+      <li>Eloquent Resources for clean payloads</li>
+      <li>Feature tests for endpoints &amp; tree traversal</li>
+    </ul>
+  </div>
+  <div>
+    <h4>Out of Scope (Phase 1)</h4>
+    <ul>
+      <li>Tenant-customized areas (sales territories, delivery zones)</li>
+      <li>Multi-language area names</li>
+      <li>Admin CRUD UI &mdash; data comes from seeder only</li>
+      <li>Postal code import (separate task)</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ================= SCHEMA ================= -->
+<h2 id="schema">2. Final Schema (5 tables)</h2>
+
+<div class="ascii-tree">countries
+   |
+   +-- country_admin_structures   (per-country ordered levels)
+   |        |
+   |        +-- admin_levels      (global catalog: STATE, ZONE, DIVISION, ...)
+   |
+   +-- admin_areas                (self-referencing; everything below country)
+            |
+            +-- postal_codes      (optional, linked to lowest applicable area)</div>
+
+<h3>2.1 <code>countries</code></h3>
+<p>Flat reference table. Always queried directly.</p>
+<table>
+  <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>id</td><td>bigint PK</td><td>auto-increment</td></tr>
+  <tr><td>iso2</td><td>char(2) unique</td><td>'IN', 'BD', 'US'</td></tr>
+  <tr><td>iso3</td><td>char(3) unique</td><td>'IND', 'BGD', 'USA'</td></tr>
+  <tr><td>name</td><td>varchar(128)</td><td>'India'</td></tr>
+  <tr><td>isd_prefix</td><td>varchar(8)</td><td>'+91'</td></tr>
+  <tr><td>default_timezone</td><td>varchar(64)</td><td>'Asia/Kolkata'</td></tr>
+  <tr><td>is_active</td><td>boolean</td><td>default true</td></tr>
+  <tr><td>timestamps</td><td>&nbsp;</td><td>created_at, updated_at</td></tr>
+</table>
+
+<h3>2.2 <code>admin_levels</code></h3>
+<p>Global catalog of every administrative level name used anywhere in the world.</p>
+<table>
+  <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>id</td><td>smallint PK</td><td>&nbsp;</td></tr>
+  <tr><td>code</td><td>varchar(32) unique</td><td>'STATE', 'ZONE', 'DIVISION', 'DISTRICT', 'COUNTY', 'UPAZILA', 'CITY', 'TOWN', &hellip;</td></tr>
+  <tr><td>name</td><td>varchar(64)</td><td>display label</td></tr>
+  <tr><td>timestamps</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+</table>
+
+<h3>2.3 <code>country_admin_structures</code></h3>
+<p>Defines, per country, which levels are used and in what order. This is the metadata that lets the same <code>admin_areas</code> table represent any country.</p>
+<table>
+  <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>country_id</td><td>bigint FK</td><td>composite PK with depth</td></tr>
+  <tr><td>depth</td><td>smallint</td><td>1, 2, 3, &hellip;</td></tr>
+  <tr><td>admin_level_id</td><td>smallint FK</td><td>which level lives at this depth</td></tr>
+</table>
+<p><strong>Examples:</strong></p>
+<ul>
+  <li><strong>India:</strong> (1,ZONE), (2,STATE), (3,DISTRICT), (4,CITY)</li>
+  <li><strong>Bangladesh:</strong> (1,DIVISION), (2,DISTRICT), (3,UPAZILA), (4,CITY)</li>
+  <li><strong>USA:</strong> (1,STATE), (2,COUNTY), (3,CITY)</li>
+  <li><strong>Singapore:</strong> (1,REGION), (2,CITY)</li>
+</ul>
+
+<h3>2.4 <code>admin_areas</code></h3>
+<p>The polymorphic, self-referencing tree. <strong>One row per area at any level.</strong></p>
+<table>
+  <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>id</td><td>bigint PK</td><td>&nbsp;</td></tr>
+  <tr><td>country_id</td><td>bigint FK</td><td>denormalized; always set, indexed for fast country filter</td></tr>
+  <tr><td>parent_id</td><td>bigint FK (self), nullable</td><td>nullable for top-level (depth=1)</td></tr>
+  <tr><td>admin_level_id</td><td>smallint FK</td><td>which level this row represents</td></tr>
+  <tr><td>depth</td><td>smallint</td><td>matches country_admin_structures.depth</td></tr>
+  <tr><td>code</td><td>varchar(64)</td><td>'MH', 'DHK-01', etc. unique within country+level</td></tr>
+  <tr><td>name</td><td>varchar(128)</td><td>'Maharashtra'</td></tr>
+  <tr><td>short_name</td><td>varchar(128) nullable</td><td>&nbsp;</td></tr>
+  <tr><td>latitude</td><td>decimal(10,7) nullable</td><td>&nbsp;</td></tr>
+  <tr><td>longitude</td><td>decimal(10,7) nullable</td><td>&nbsp;</td></tr>
+  <tr><td>timezone</td><td>varchar(64) nullable</td><td>only set if differs from country default</td></tr>
+  <tr><td>is_active</td><td>boolean</td><td>soft-disable instead of delete</td></tr>
+  <tr><td>timestamps</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+</table>
+<p><strong>Indexes:</strong> <code>(country_id, depth)</code>, <code>(parent_id)</code>, <code>(country_id, admin_level_id, code)</code> unique.</p>
+
+<h3>2.5 <code>postal_codes</code> (Phase 1 stub)</h3>
+<p>Kept separate because postal codes are queried independently and don't always nest cleanly. Schema sketch only &mdash; seed in a later phase.</p>
+<table>
+  <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>id</td><td>bigint PK</td><td>&nbsp;</td></tr>
+  <tr><td>country_id</td><td>bigint FK</td><td>&nbsp;</td></tr>
+  <tr><td>admin_area_id</td><td>bigint FK</td><td>lowest applicable area</td></tr>
+  <tr><td>postal_code</td><td>varchar(20)</td><td>indexed</td></tr>
+  <tr><td>latitude, longitude</td><td>decimal nullable</td><td>&nbsp;</td></tr>
+  <tr><td>timestamps</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+</table>
+
+<!-- ================= PACKAGE ================= -->
+<h2 id="package">3. Package Install</h2>
+
+<p>One dependency does the heavy lifting for tree traversal.</p>
+
+<pre><code>composer require staudenmeir/laravel-adjacency-list:"^1.0"</code></pre>
+
+<p>That's it &mdash; no service provider registration needed; the package auto-discovers. It adds the <code>HasRecursiveRelationships</code> trait we'll use on <code>AdminArea</code>.</p>
+
+<div class="callout">
+  <strong>Why this package?</strong> It gives us <code>->ancestors</code>, <code>->descendants</code>, <code>->bloodline</code>, <code>->tree()</code>, and materialized-path helpers
+  using recursive CTEs (Postgres-compatible). No closure table required, no triggers to maintain, and queries stay readable.
+</div>
+
+<!-- ================= MIGRATIONS ================= -->
+<h2 id="migrations">4. Models &amp; Migrations</h2>
+
+<p>Generate each model and its migration in a <strong>single command</strong> using the <code>-m</code> flag. Order matters so foreign keys resolve cleanly:</p>
+
+<pre><code>php artisan make:model Country -m
+php artisan make:model AdminLevel -m
+php artisan make:model CountryAdminStructure -m
+php artisan make:model AdminArea -m
+php artisan make:model PostalCode -m</code></pre>
+
+<div class="callout">
+  <strong>Project convention:</strong> All foreign keys use <code>-&gt;restrictOnDelete()</code> &mdash; never <code>cascadeOnDelete()</code> or <code>nullOnDelete()</code>. The database must refuse a delete that would orphan or remove dependent rows; callers clean up explicitly.
+</div>
+
+<h3>4.1 countries</h3>
+<div class="filepath">database/migrations/xxxx_create_countries_table.php</div>
+<pre><code>Schema::create('countries', function (Blueprint $table) {
+    $table->id();
+    $table->char('iso2', 2)->unique();
+    $table->char('iso3', 3)->unique();
+    $table->string('name', 128);
+    $table->string('isd_prefix', 8)->nullable();
+    $table->string('default_timezone', 64)->nullable();
+    $table->boolean('is_active')->default(true);
+    $table->timestamps();
+});</code></pre>
+
+<h3>4.2 admin_levels</h3>
+<div class="filepath">database/migrations/xxxx_create_admin_levels_table.php</div>
+<pre><code>Schema::create('admin_levels', function (Blueprint $table) {
+    $table->smallIncrements('id');
+    $table->string('code', 32)->unique();
+    $table->string('name', 64);
+    $table->timestamps();
+});</code></pre>
+
+<h3>4.3 country_admin_structures</h3>
+<div class="filepath">database/migrations/xxxx_create_country_admin_structures_table.php</div>
+<pre><code>Schema::create('country_admin_structures', function (Blueprint $table) {
+    $table->foreignId('country_id')->constrained()->restrictOnDelete();
+    $table->unsignedSmallInteger('depth');
+    $table->unsignedSmallInteger('admin_level_id');
+    $table->foreign('admin_level_id')->references('id')->on('admin_levels')
+          ->restrictOnDelete();
+    $table->primary(['country_id', 'depth']);
+});</code></pre>
+
+<h3>4.4 admin_areas</h3>
+<div class="filepath">database/migrations/xxxx_create_admin_areas_table.php</div>
+<pre><code>Schema::create('admin_areas', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('country_id')->constrained()->restrictOnDelete();
+    $table->foreignId('parent_id')->nullable()
+          ->constrained('admin_areas')->restrictOnDelete();
+    $table->unsignedSmallInteger('admin_level_id');
+    $table->foreign('admin_level_id')->references('id')->on('admin_levels')
+          ->restrictOnDelete();
+    $table->unsignedSmallInteger('depth');
+    $table->string('code', 64);
+    $table->string('name', 128);
+    $table->string('short_name', 128)->nullable();
+    $table->decimal('latitude', 10, 7)->nullable();
+    $table->decimal('longitude', 10, 7)->nullable();
+    $table->string('timezone', 64)->nullable();
+    $table->boolean('is_active')->default(true);
+    $table->timestamps();
+
+    $table->index(['country_id', 'depth']);
+    $table->index('parent_id');
+    $table->unique(['country_id', 'admin_level_id', 'code'], 'admin_areas_country_level_code_unique');
+});</code></pre>
+
+<h3>4.5 postal_codes (stub)</h3>
+<div class="filepath">database/migrations/xxxx_create_postal_codes_table.php</div>
+<pre><code>Schema::create('postal_codes', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('country_id')->constrained()->restrictOnDelete();
+    $table->foreignId('admin_area_id')->constrained()->restrictOnDelete();
+    $table->string('postal_code', 20)->index();
+    $table->decimal('latitude', 10, 7)->nullable();
+    $table->decimal('longitude', 10, 7)->nullable();
+    $table->timestamps();
+});</code></pre>
+
+<!-- ================= MODELS ================= -->
+<h2 id="models">5. Model Bodies</h2>
+
+<p>The model files were already generated alongside their migrations in &sect;4 (<code>make:model X -m</code>). Now fill in the bodies below.</p>
+
+<h3>5.1 Country</h3>
+<div class="filepath">app/Models/Country.php</div>
+<pre><code>&lt;?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Country extends Model
+{
+    protected $fillable = [
+        'iso2', 'iso3', 'name', 'isd_prefix',
+        'default_timezone', 'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' =&gt; 'boolean',
+    ];
+
+    public function adminAreas(): HasMany
+    {
+        return $this-&gt;hasMany(AdminArea::class);
+    }
+
+    public function structure(): HasMany
+    {
+        return $this-&gt;hasMany(CountryAdminStructure::class)
+                    -&gt;orderBy('depth');
+    }
+
+    public function topLevelAreas(): HasMany
+    {
+        return $this-&gt;hasMany(AdminArea::class)-&gt;whereNull('parent_id');
+    }
+}</code></pre>
+
+<h3>5.2 AdminLevel</h3>
+<div class="filepath">app/Models/AdminLevel.php</div>
+<pre><code>&lt;?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class AdminLevel extends Model
+{
+    protected $fillable = ['code', 'name'];
+}</code></pre>
+
+<h3>5.3 CountryAdminStructure</h3>
+<div class="filepath">app/Models/CountryAdminStructure.php</div>
+<pre><code>&lt;?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class CountryAdminStructure extends Model
+{
+    protected $primaryKey = null;
+    public $incrementing = false;
+    public $timestamps = false;
+
+    protected $fillable = ['country_id', 'depth', 'admin_level_id'];
+
+    public function country(): BelongsTo
+    {
+        return $this-&gt;belongsTo(Country::class);
+    }
+
+    public function level(): BelongsTo
+    {
+        return $this-&gt;belongsTo(AdminLevel::class, 'admin_level_id');
+    }
+}</code></pre>
+
+<h3>5.4 AdminArea (the polymorphic tree)</h3>
+<div class="filepath">app/Models/AdminArea.php</div>
+<pre><code>&lt;?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
+
+class AdminArea extends Model
+{
+    use HasRecursiveRelationships;
+
+    protected $fillable = [
+        'country_id', 'parent_id', 'admin_level_id', 'depth',
+        'code', 'name', 'short_name',
+        'latitude', 'longitude', 'timezone', 'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' =&gt; 'boolean',
+        'latitude' =&gt; 'decimal:7',
+        'longitude' =&gt; 'decimal:7',
+    ];
+
+    /**
+     * Tell the recursive-relationships trait which column points to the parent.
+     */
+    public function getParentKeyName(): string
+    {
+        return 'parent_id';
+    }
+
+    public function country(): BelongsTo
+    {
+        return $this-&gt;belongsTo(Country::class);
+    }
+
+    public function level(): BelongsTo
+    {
+        return $this-&gt;belongsTo(AdminLevel::class, 'admin_level_id');
+    }
+
+    public function scopeForCountry($query, int $countryId)
+    {
+        return $query-&gt;where('country_id', $countryId);
+    }
+
+    public function scopeAtDepth($query, int $depth)
+    {
+        return $query-&gt;where('depth', $depth);
+    }
+}</code></pre>
+
+<div class="callout ok">
+  <strong>What the trait gives us for free:</strong>
+  <code>$area-&gt;ancestors</code>, <code>$area-&gt;descendants</code>,
+  <code>$area-&gt;bloodline</code>, <code>AdminArea::tree()-&gt;get()</code>,
+  <code>AdminArea::withRecursiveQueryConstraint(...)</code>, and
+  <code>$area-&gt;descendantsAndSelf-&gt;pluck('name')-&gt;implode(' &raquo; ')</code>.
+</div>
+
+<h3>5.5 PostalCode</h3>
+<div class="filepath">app/Models/PostalCode.php</div>
+<pre><code>&lt;?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class PostalCode extends Model
+{
+    protected $fillable = [
+        'country_id', 'admin_area_id', 'postal_code',
+        'latitude', 'longitude',
+    ];
+
+    public function country(): BelongsTo
+    {
+        return $this-&gt;belongsTo(Country::class);
+    }
+
+    public function adminArea(): BelongsTo
+    {
+        return $this-&gt;belongsTo(AdminArea::class);
+    }
+}</code></pre>
+
+<!-- ================= SEEDERS ================= -->
+<h2 id="seeders">6. Seeders</h2>
+
+<p>All data is inserted via seeders &mdash; no admin UI in Phase 1.</p>
+
+<pre><code>php artisan make:seeder AdminLevelSeeder
+php artisan make:seeder CountrySeeder
+php artisan make:seeder CountryAdminStructureSeeder
+php artisan make:seeder AdminAreaSeeder
+php artisan make:seeder LocationDataSeeder    # orchestrator</code></pre>
+
+<h3>6.1 AdminLevelSeeder</h3>
+<div class="filepath">database/seeders/AdminLevelSeeder.php</div>
+<pre><code>use App\Models\AdminLevel;
+
+class AdminLevelSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $levels = [
+            ['code' =&gt; 'ZONE',         'name' =&gt; 'Zone'],
+            ['code' =&gt; 'STATE',        'name' =&gt; 'State'],
+            ['code' =&gt; 'PROVINCE',     'name' =&gt; 'Province'],
+            ['code' =&gt; 'DIVISION',     'name' =&gt; 'Division'],
+            ['code' =&gt; 'REGION',       'name' =&gt; 'Region'],
+            ['code' =&gt; 'DISTRICT',     'name' =&gt; 'District'],
+            ['code' =&gt; 'COUNTY',       'name' =&gt; 'County'],
+            ['code' =&gt; 'UPAZILA',      'name' =&gt; 'Upazila'],
+            ['code' =&gt; 'MUNICIPALITY', 'name' =&gt; 'Municipality'],
+            ['code' =&gt; 'CITY',         'name' =&gt; 'City'],
+            ['code' =&gt; 'TOWN',         'name' =&gt; 'Town'],
+            ['code' =&gt; 'VILLAGE',      'name' =&gt; 'Village'],
+        ];
+
+        foreach ($levels as $row) {
+            AdminLevel::updateOrCreate(['code' =&gt; $row['code']], $row);
+        }
+    }
+}</code></pre>
+
+<h3>6.2 CountrySeeder</h3>
+<div class="filepath">database/seeders/CountrySeeder.php</div>
+<pre><code>use App\Models\Country;
+
+class CountrySeeder extends Seeder
+{
+    public function run(): void
+    {
+        $countries = [
+            ['iso2' =&gt; 'IN', 'iso3' =&gt; 'IND', 'name' =&gt; 'India',       'isd_prefix' =&gt; '+91',  'default_timezone' =&gt; 'Asia/Kolkata'],
+            ['iso2' =&gt; 'BD', 'iso3' =&gt; 'BGD', 'name' =&gt; 'Bangladesh',  'isd_prefix' =&gt; '+880', 'default_timezone' =&gt; 'Asia/Dhaka'],
+            ['iso2' =&gt; 'US', 'iso3' =&gt; 'USA', 'name' =&gt; 'United States','isd_prefix' =&gt; '+1',  'default_timezone' =&gt; 'America/New_York'],
+            ['iso2' =&gt; 'SG', 'iso3' =&gt; 'SGP', 'name' =&gt; 'Singapore',   'isd_prefix' =&gt; '+65',  'default_timezone' =&gt; 'Asia/Singapore'],
+        ];
+
+        foreach ($countries as $row) {
+            Country::updateOrCreate(['iso2' =&gt; $row['iso2']], $row);
+        }
+    }
+}</code></pre>
+
+<h3>6.3 CountryAdminStructureSeeder</h3>
+<div class="filepath">database/seeders/CountryAdminStructureSeeder.php</div>
+<pre><code>use App\Models\Country;
+use App\Models\AdminLevel;
+use App\Models\CountryAdminStructure;
+
+class CountryAdminStructureSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $structures = [
+            'IN' =&gt; ['ZONE', 'STATE', 'DISTRICT', 'CITY'],
+            'BD' =&gt; ['DIVISION', 'DISTRICT', 'UPAZILA', 'CITY'],
+            'US' =&gt; ['STATE', 'COUNTY', 'CITY'],
+            'SG' =&gt; ['REGION', 'CITY'],
+        ];
+
+        $levelIds = AdminLevel::pluck('id', 'code');
+
+        foreach ($structures as $iso2 =&gt; $levels) {
+            $country = Country::where('iso2', $iso2)-&gt;first();
+            foreach ($levels as $depth =&gt; $code) {
+                CountryAdminStructure::updateOrCreate(
+                    ['country_id' =&gt; $country-&gt;id, 'depth' =&gt; $depth + 1],
+                    ['admin_level_id' =&gt; $levelIds[$code]],
+                );
+            }
+        }
+    }
+}</code></pre>
+
+<h3>6.4 AdminAreaSeeder (sample data)</h3>
+<p>Insert a representative slice for each country &mdash; not exhaustive. Real data can come from GeoNames later.</p>
+<div class="filepath">database/seeders/AdminAreaSeeder.php</div>
+<pre><code>use App\Models\Country;
+use App\Models\AdminLevel;
+use App\Models\AdminArea;
+
+class AdminAreaSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $this-&gt;seedIndia();
+        $this-&gt;seedBangladesh();
+        $this-&gt;seedUSA();
+        $this-&gt;seedSingapore();
+    }
+
+    private function seedIndia(): void
+    {
+        $country = Country::where('iso2', 'IN')-&gt;first();
+        $level   = fn(string $c) =&gt; AdminLevel::where('code', $c)-&gt;value('id');
+
+        $west = $this-&gt;upsertArea($country, null, $level('ZONE'), 1, 'WEST', 'Western Zone');
+        $mh   = $this-&gt;upsertArea($country, $west, $level('STATE'), 2, 'MH', 'Maharashtra');
+        $pune = $this-&gt;upsertArea($country, $mh, $level('DISTRICT'), 3, 'PUNE', 'Pune');
+        $this-&gt;upsertArea($country, $pune, $level('CITY'), 4, 'PUNE-CITY', 'Pune City');
+        $this-&gt;upsertArea($country, $pune, $level('CITY'), 4, 'PIMPRI', 'Pimpri-Chinchwad');
+
+        $south = $this-&gt;upsertArea($country, null, $level('ZONE'), 1, 'SOUTH', 'Southern Zone');
+        $ka    = $this-&gt;upsertArea($country, $south, $level('STATE'), 2, 'KA', 'Karnataka');
+        $blr   = $this-&gt;upsertArea($country, $ka, $level('DISTRICT'), 3, 'BLR', 'Bangalore Urban');
+        $this-&gt;upsertArea($country, $blr, $level('CITY'), 4, 'BENGALURU', 'Bengaluru');
+    }
+
+    private function seedBangladesh(): void
+    {
+        $country = Country::where('iso2', 'BD')-&gt;first();
+        $level   = fn(string $c) =&gt; AdminLevel::where('code', $c)-&gt;value('id');
+
+        $dhk = $this-&gt;upsertArea($country, null, $level('DIVISION'), 1, 'DHK', 'Dhaka');
+        $dhkD = $this-&gt;upsertArea($country, $dhk, $level('DISTRICT'), 2, 'DHK-D', 'Dhaka District');
+        $savar = $this-&gt;upsertArea($country, $dhkD, $level('UPAZILA'), 3, 'SAVAR', 'Savar');
+        $this-&gt;upsertArea($country, $savar, $level('CITY'), 4, 'SAVAR-CITY', 'Savar Town');
+
+        $ctg = $this-&gt;upsertArea($country, null, $level('DIVISION'), 1, 'CTG', 'Chattogram');
+        $ctgD = $this-&gt;upsertArea($country, $ctg, $level('DISTRICT'), 2, 'CTG-D', 'Chattogram District');
+        $this-&gt;upsertArea($country, $ctgD, $level('UPAZILA'), 3, 'PATIYA', 'Patiya');
+    }
+
+    private function seedUSA(): void
+    {
+        $country = Country::where('iso2', 'US')-&gt;first();
+        $level   = fn(string $c) =&gt; AdminLevel::where('code', $c)-&gt;value('id');
+
+        $ca = $this-&gt;upsertArea($country, null, $level('STATE'), 1, 'CA', 'California');
+        $sf = $this-&gt;upsertArea($country, $ca, $level('COUNTY'), 2, 'SF', 'San Francisco County');
+        $this-&gt;upsertArea($country, $sf, $level('CITY'), 3, 'SF-CITY', 'San Francisco');
+    }
+
+    private function seedSingapore(): void
+    {
+        $country = Country::where('iso2', 'SG')-&gt;first();
+        $level   = fn(string $c) =&gt; AdminLevel::where('code', $c)-&gt;value('id');
+
+        $central = $this-&gt;upsertArea($country, null, $level('REGION'), 1, 'CENTRAL', 'Central Region');
+        $this-&gt;upsertArea($country, $central, $level('CITY'), 2, 'SG-CITY', 'Singapore');
+    }
+
+    private function upsertArea(Country $country, ?AdminArea $parent, int $levelId,
+                                int $depth, string $code, string $name): AdminArea
+    {
+        return AdminArea::updateOrCreate(
+            [
+                'country_id'     =&gt; $country-&gt;id,
+                'admin_level_id' =&gt; $levelId,
+                'code'           =&gt; $code,
+            ],
+            [
+                'parent_id' =&gt; $parent?-&gt;id,
+                'depth'     =&gt; $depth,
+                'name'      =&gt; $name,
+                'is_active' =&gt; true,
+            ],
+        );
+    }
+}</code></pre>
+
+<h3>6.5 LocationDataSeeder (orchestrator) + DatabaseSeeder hook</h3>
+<div class="filepath">database/seeders/LocationDataSeeder.php</div>
+<pre><code>class LocationDataSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $this-&gt;call([
+            AdminLevelSeeder::class,
+            CountrySeeder::class,
+            CountryAdminStructureSeeder::class,
+            AdminAreaSeeder::class,
+        ]);
+    }
+}</code></pre>
+
+<div class="filepath">database/seeders/DatabaseSeeder.php (add inside run())</div>
+<pre><code>$this-&gt;call(LocationDataSeeder::class);</code></pre>
+
+<!-- ================= RESOURCES ================= -->
+<h2 id="resources">7. API Resources</h2>
+
+<pre><code>php artisan make:resource CountryResource
+php artisan make:resource AdminAreaResource
+php artisan make:resource AdminAreaTreeResource</code></pre>
+
+<h3>7.1 CountryResource</h3>
+<div class="filepath">app/Http/Resources/CountryResource.php</div>
+<pre><code>public function toArray($request): array
+{
+    return [
+        'id'               =&gt; $this-&gt;id,
+        'iso2'             =&gt; $this-&gt;iso2,
+        'iso3'             =&gt; $this-&gt;iso3,
+        'name'             =&gt; $this-&gt;name,
+        'isd_prefix'       =&gt; $this-&gt;isd_prefix,
+        'default_timezone' =&gt; $this-&gt;default_timezone,
+        'structure'        =&gt; $this-&gt;whenLoaded('structure', fn() =&gt;
+            $this-&gt;structure-&gt;map(fn($row) =&gt; [
+                'depth' =&gt; $row-&gt;depth,
+                'level' =&gt; $row-&gt;level-&gt;code,
+                'label' =&gt; $row-&gt;level-&gt;name,
+            ])
+        ),
+    ];
+}</code></pre>
+
+<h3>7.2 AdminAreaResource</h3>
+<div class="filepath">app/Http/Resources/AdminAreaResource.php</div>
+<pre><code>public function toArray($request): array
+{
+    return [
+        'id'         =&gt; $this-&gt;id,
+        'parent_id'  =&gt; $this-&gt;parent_id,
+        'country_id' =&gt; $this-&gt;country_id,
+        'level'      =&gt; $this-&gt;whenLoaded('level', fn() =&gt; $this-&gt;level-&gt;code),
+        'depth'      =&gt; $this-&gt;depth,
+        'code'       =&gt; $this-&gt;code,
+        'name'       =&gt; $this-&gt;name,
+        'short_name' =&gt; $this-&gt;short_name,
+        'latitude'   =&gt; $this-&gt;latitude,
+        'longitude'  =&gt; $this-&gt;longitude,
+    ];
+}</code></pre>
+
+<h3>7.3 AdminAreaTreeResource (nested children)</h3>
+<div class="filepath">app/Http/Resources/AdminAreaTreeResource.php</div>
+<pre><code>public function toArray($request): array
+{
+    return [
+        'id'       =&gt; $this-&gt;id,
+        'level'    =&gt; $this-&gt;level?-&gt;code,
+        'code'     =&gt; $this-&gt;code,
+        'name'     =&gt; $this-&gt;name,
+        'depth'    =&gt; $this-&gt;depth,
+        'children' =&gt; self::collection($this-&gt;children ?? collect()),
+    ];
+}</code></pre>
+
+<!-- ================= CONTROLLERS ================= -->
+<h2 id="controllers">8. Controllers &amp; Routes</h2>
+
+<pre><code>php artisan make:controller Api/LocationController</code></pre>
+
+<h3>8.1 LocationController</h3>
+<div class="filepath">app/Http/Controllers/Api/LocationController.php</div>
+<pre><code>&lt;?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Resources\AdminAreaResource;
+use App\Http\Resources\AdminAreaTreeResource;
+use App\Http\Resources\CountryResource;
+use App\Models\AdminArea;
+use App\Models\Country;
+use Illuminate\Http\Request;
+
+class LocationController extends Controller
+{
+    public function countries()
+    {
+        return CountryResource::collection(
+            Country::where('is_active', true)-&gt;orderBy('name')-&gt;get()
+        );
+    }
+
+    public function structure(Country $country)
+    {
+        $country-&gt;load('structure.level');
+        return new CountryResource($country);
+    }
+
+    /**
+     * Top-level areas for a country (depth = 1).
+     * Used for the first dropdown.
+     */
+    public function topLevel(Country $country)
+    {
+        return AdminAreaResource::collection(
+            $country-&gt;topLevelAreas()-&gt;with('level')-&gt;orderBy('name')-&gt;get()
+        );
+    }
+
+    /**
+     * Children of any given area.
+     * Used to cascade the next dropdown.
+     */
+    public function children(AdminArea $area)
+    {
+        return AdminAreaResource::collection(
+            $area-&gt;children()-&gt;with('level')-&gt;orderBy('name')-&gt;get()
+        );
+    }
+
+    /**
+     * Full nested tree for a country, eager-loaded.
+     * Used when the frontend wants to render the whole hierarchy at once.
+     */
+    public function tree(Country $country)
+    {
+        $tree = AdminArea::tree()
+            -&gt;where('country_id', $country-&gt;id)
+            -&gt;with('level')
+            -&gt;get()
+            -&gt;toTree();
+
+        return AdminAreaTreeResource::collection($tree);
+    }
+
+    /**
+     * Search by name across all levels for a country.
+     */
+    public function search(Request $request, Country $country)
+    {
+        $q = $request-&gt;string('q')-&gt;trim()-&gt;value();
+
+        $results = AdminArea::forCountry($country-&gt;id)
+            -&gt;when($q !== '', fn($qq) =&gt; $qq-&gt;where('name', 'ilike', "%{$q}%"))
+            -&gt;with('level')
+            -&gt;limit(50)
+            -&gt;get();
+
+        return AdminAreaResource::collection($results);
+    }
+
+    /**
+     * Ancestor chain from root down to (and including) this area.
+     * Used to build the breadcrumb on the area detail page.
+     */
+    public function ancestors(AdminArea $area)
+    {
+        return AdminAreaResource::collection(
+            $area-&gt;ancestorsAndSelf()-&gt;with('level')-&gt;orderBy('depth')-&gt;get()
+        );
+    }
+}</code></pre>
+
+<h3>8.2 routes/api.php</h3>
+<div class="filepath">routes/api.php (add)</div>
+<pre><code>use App\Http\Controllers\Api\LocationController;
+
+Route::prefix('locations')-&gt;group(function () {
+    Route::get('countries',                       [LocationController::class, 'countries']);
+    Route::get('countries/{country}/structure',   [LocationController::class, 'structure']);
+    Route::get('countries/{country}/top-level',   [LocationController::class, 'topLevel']);
+    Route::get('countries/{country}/tree',        [LocationController::class, 'tree']);
+    Route::get('countries/{country}/search',      [LocationController::class, 'search']);
+    Route::get('areas/{area}/children',           [LocationController::class, 'children']);
+    Route::get('areas/{area}/ancestors',          [LocationController::class, 'ancestors']);
+});</code></pre>
+
+<!-- ================= FRONTEND ================= -->
+<h2 id="frontend">9. API Reference (for any frontend consumer)</h2>
+
+<p>
+  Backend exposes a read-only REST API. The frontend is implemented separately and is out of scope
+  for this plan. This section documents the contract a frontend developer needs.
+</p>
+
+<h3>9.1 Endpoint summary</h3>
+<table>
+  <tr><th>Method</th><th>URL</th><th>Purpose</th></tr>
+  <tr>
+    <td>GET</td>
+    <td><code>/api/locations/countries</code></td>
+    <td>List all active countries</td>
+  </tr>
+  <tr>
+    <td>GET</td>
+    <td><code>/api/locations/countries/{country}/structure</code></td>
+    <td>Country + ordered list of admin levels used (Zone &rarr; State &rarr; District &hellip;)</td>
+  </tr>
+  <tr>
+    <td>GET</td>
+    <td><code>/api/locations/countries/{country}/top-level</code></td>
+    <td>Areas at depth 1 for the country</td>
+  </tr>
+  <tr>
+    <td>GET</td>
+    <td><code>/api/locations/countries/{country}/tree</code></td>
+    <td>Full nested tree (use sparingly &mdash; can be large)</td>
+  </tr>
+  <tr>
+    <td>GET</td>
+    <td><code>/api/locations/countries/{country}/search?q=text</code></td>
+    <td>Case-insensitive name search across all levels (limit 50)</td>
+  </tr>
+  <tr>
+    <td>GET</td>
+    <td><code>/api/locations/areas/{area}/children</code></td>
+    <td>Direct children of an area (cascading drill-down)</td>
+  </tr>
+  <tr>
+    <td>GET</td>
+    <td><code>/api/locations/areas/{area}/ancestors</code></td>
+    <td>Ancestor chain (root &rarr; area), useful for breadcrumbs</td>
+  </tr>
+</table>
+
+<h3>9.2 Suggested call flow (master-detail drill-down)</h3>
+<div class="ascii-tree">1. On app load
+     GET /api/locations/countries
+     -> render country list
+
+2. User selects country (e.g. India)
+     GET /api/locations/countries/1/structure   (cache for session)
+     GET /api/locations/countries/1/top-level
+     -> render that country's zones, labelled "Zone"
+        (label comes from structure[0].label)
+
+3. User clicks an area (e.g. Western Zone, id=10)
+     GET /api/locations/areas/10/children       (next list)
+     GET /api/locations/areas/10/ancestors      (breadcrumb)
+     -> render children list, labelled with structure[currentDepth].label
+     -> render breadcrumb from ancestors
+
+4. Repeat step 3 deeper. When children is empty,
+   you've hit a leaf node.</div>
+
+<h3>9.3 Sample payloads</h3>
+
+<h4><code>GET /api/locations/countries</code></h4>
+<pre><code>{
+  "data": [
+    { "id": 1, "iso2": "IN", "iso3": "IND", "name": "India",        "isd_prefix": "+91",  "default_timezone": "Asia/Kolkata" },
+    { "id": 2, "iso2": "BD", "iso3": "BGD", "name": "Bangladesh",   "isd_prefix": "+880", "default_timezone": "Asia/Dhaka" },
+    { "id": 3, "iso2": "US", "iso3": "USA", "name": "United States","isd_prefix": "+1",   "default_timezone": "America/New_York" },
+    { "id": 4, "iso2": "SG", "iso3": "SGP", "name": "Singapore",    "isd_prefix": "+65",  "default_timezone": "Asia/Singapore" }
+  ]
+}</code></pre>
+
+<h4><code>GET /api/locations/countries/1/structure</code></h4>
+<pre><code>{
+  "data": {
+    "id": 1,
+    "iso2": "IN",
+    "name": "India",
+    "structure": [
+      { "depth": 1, "level": "ZONE",     "label": "Zone" },
+      { "depth": 2, "level": "STATE",    "label": "State" },
+      { "depth": 3, "level": "DISTRICT", "label": "District" },
+      { "depth": 4, "level": "CITY",     "label": "City" }
+    ]
+  }
+}</code></pre>
+
+<h4><code>GET /api/locations/countries/1/top-level</code></h4>
+<pre><code>{
+  "data": [
+    { "id": 10, "parent_id": null, "country_id": 1, "level": "ZONE",
+      "depth": 1, "code": "WEST",  "name": "Western Zone",  "short_name": null,
+      "latitude": null, "longitude": null },
+    { "id": 20, "parent_id": null, "country_id": 1, "level": "ZONE",
+      "depth": 1, "code": "SOUTH", "name": "Southern Zone", "short_name": null,
+      "latitude": null, "longitude": null }
+  ]
+}</code></pre>
+
+<h4><code>GET /api/locations/areas/10/children</code></h4>
+<pre><code>{
+  "data": [
+    { "id": 11, "parent_id": 10, "country_id": 1, "level": "STATE",
+      "depth": 2, "code": "MH", "name": "Maharashtra", "short_name": null,
+      "latitude": null, "longitude": null }
+  ]
+}</code></pre>
+
+<h4><code>GET /api/locations/areas/12/ancestors</code> (Pune)</h4>
+<pre><code>{
+  "data": [
+    { "id": 10, "level": "ZONE",     "name": "Western Zone", "depth": 1 },
+    { "id": 11, "level": "STATE",    "name": "Maharashtra",  "depth": 2 },
+    { "id": 12, "level": "DISTRICT", "name": "Pune",         "depth": 3 }
+  ]
+}</code></pre>
+
+<h4><code>GET /api/locations/countries/1/tree</code></h4>
+<pre><code>{
+  "data": [
+    {
+      "id": 10, "level": "ZONE", "code": "WEST", "name": "Western Zone", "depth": 1,
+      "children": [
+        {
+          "id": 11, "level": "STATE", "code": "MH", "name": "Maharashtra", "depth": 2,
+          "children": [
+            {
+              "id": 12, "level": "DISTRICT", "code": "PUNE", "name": "Pune", "depth": 3,
+              "children": [
+                { "id": 13, "level": "CITY", "code": "PUNE-CITY",
+                  "name": "Pune City", "depth": 4, "children": [] }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}</code></pre>
+
+<h3>9.4 Common response envelope &amp; errors</h3>
+<ul>
+  <li>All success responses use the Laravel Resource envelope: <code>{ "data": &hellip; }</code>.</li>
+  <li><code>404</code> when a country/area id (or <code>{country}</code> ISO code) doesn't exist.</li>
+  <li><code>422</code> with Laravel validation shape if a required query param is missing in future write endpoints.</li>
+</ul>
+
+<h3>9.5 CORS</h3>
+<p>If the frontend is on a different origin (e.g. <code>http://localhost:3000</code>), edit <code>backend/config/cors.php</code>:</p>
+<pre><code>'paths' =&gt; ['api/*'],
+'allowed_origins' =&gt; [env('FRONTEND_URL', 'http://localhost:3000')],
+'allowed_methods' =&gt; ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+'allowed_headers' =&gt; ['*'],
+'supports_credentials' =&gt; false,</code></pre>
+
+<h3>9.6 Auth</h3>
+<p>
+  These endpoints serve reference data and are <strong>public by default</strong>.
+  If you want them protected, add the <code>auth:sanctum</code> middleware to the route group in
+  <code>routes/api.php</code>.
+</p>
+
+<!-- ================= ORDER ================= -->
+<h2 id="order">10. Step-by-Step Order</h2>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <h4>Install package</h4>
+    <code>composer require staudenmeir/laravel-adjacency-list:"^1.0"</code>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <h4>Generate model + migration together (one command each)</h4>
+    Five <code>php artisan make:model X -m</code> calls in the order in &sect;4. Fill in migration bodies using <code>-&gt;restrictOnDelete()</code> for every FK.
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-body">
+    <h4>Paste model bodies</h4>
+    Open each generated model file and paste the body from &sect;5 (fillable, casts, relationships, trait for <code>AdminArea</code>).
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-body">
+    <h4>Generate seeders &amp; wire into DatabaseSeeder</h4>
+    Five <code>php artisan make:seeder X</code> calls, then <code>php artisan migrate:fresh --seed</code>.
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">5</div>
+  <div class="step-body">
+    <h4>Generate API resources</h4>
+    Three <code>php artisan make:resource</code> calls, paste bodies from &sect;7.
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">6</div>
+  <div class="step-body">
+    <h4>Generate controller &amp; register routes</h4>
+    One <code>php artisan make:controller Api/LocationController</code>, then add routes to <code>api.php</code>.
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">7</div>
+  <div class="step-body">
+    <h4>Smoke-test endpoints</h4>
+    <code>curl http://localhost:8000/api/locations/countries</code><br>
+    <code>curl http://localhost:8000/api/locations/countries/1/tree</code>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">8</div>
+  <div class="step-body">
+    <h4>Write feature tests (see &sect;11) and run <code>php artisan test --compact</code></h4>
+  </div>
+</div>
+<div class="step">
+  <div class="step-num">9</div>
+  <div class="step-body">
+    <h4>Run <code>vendor/bin/pint --dirty --format agent</code> before committing</h4>
+  </div>
+</div>
+
+<!-- ================= TESTS ================= -->
+<h2 id="tests">11. Tests</h2>
+
+<pre><code>php artisan make:test --phpunit LocationApiTest</code></pre>
+
+<p>Cases to cover:</p>
+<ul>
+  <li><strong>countries endpoint</strong> returns seeded countries.</li>
+  <li><strong>structure endpoint</strong> for India returns 4 levels in correct order.</li>
+  <li><strong>structure endpoint</strong> for Singapore returns 2 levels.</li>
+  <li><strong>top-level</strong> for India returns zones only (depth=1).</li>
+  <li><strong>children</strong> of Maharashtra returns its districts.</li>
+  <li><strong>tree</strong> for Bangladesh returns DIVISION at root, UPAZILA at depth 3.</li>
+  <li><strong>search</strong> by partial name (case-insensitive).</li>
+  <li><strong>AdminArea-&gt;ancestors</strong> on "Pune City" returns Pune &rarr; Maharashtra &rarr; Western Zone.</li>
+</ul>
+
+<!-- ================= FUTURE ================= -->
+<h2 id="future">12. Future Extensions</h2>
+
+<table>
+  <tr><th>Phase</th><th>Feature</th><th>Why later</th></tr>
+  <tr><td>2</td><td>Postal-code seeder (GeoNames)</td><td>Large dataset; not blocking core flows.</td></tr>
+  <tr><td>2</td><td>Admin CRUD UI</td><td>Reference data rarely changes; seeders cover Phase 1.</td></tr>
+  <tr><td>3</td><td>Multi-language area names</td><td>Add <code>admin_area_translations</code> only when product needs i18n.</td></tr>
+  <tr><td>3</td><td>Tenant custom territories</td><td>Separate <code>tenant_territory</code> table; never pollute reference data.</td></tr>
+  <tr><td>4</td><td>Closure table</td><td>Only if recursive CTE reads become a hot path.</td></tr>
+  <tr><td>4</td><td>Spatial index (PostGIS)</td><td>Required only for "areas within radius" queries.</td></tr>
+</table>
+
+<div class="callout warn">
+  <strong>Decision to confirm before implementation:</strong>
+  <ol style="margin-top:8px;">
+    <li>Stay on PostgreSQL (current <code>.env</code>) so we can use <code>ilike</code> for search? &mdash; otherwise replace with <code>LOWER(name) LIKE LOWER(?)</code>.</li>
+    <li>Sanctum-protect these endpoints, or leave them public (reference data is typically public)?</li>
+    <li>Should the seeder be re-runnable (current design uses <code>updateOrCreate</code> &mdash; yes by default)?</li>
+  </ol>
+</div>
+
+<footer>
+  Plan document &mdash; Location Management module<br>
+  Generated 2026-05-17 for the EcommerceManagement backend
+</footer>
+
+</div>
+</body>
+</html>

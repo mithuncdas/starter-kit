@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User &harr; Location Relationship — Integration Plan</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #111827;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #fbbf24;
+    --ok: #4ade80;
+    --warn: #f97316;
+    --border: #334155;
+    --code-bg: #0b1220;
+    --code-text: #d1d5db;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px 96px; }
+  header { border-bottom: 2px solid var(--border); padding-bottom: 24px; margin-bottom: 32px; }
+  header h1 { margin: 0 0 8px; font-size: 32px; color: #fff; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .badge { display: inline-block; padding: 4px 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; font-size: 12px; color: var(--muted); }
+  .badge.accent { color: var(--accent); border-color: var(--accent); }
+  .badge.ok { color: var(--ok); border-color: var(--ok); }
+  nav.toc { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  nav.toc h3 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  h2 { color: #fff; margin-top: 48px; padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 24px; }
+  h3 { color: var(--accent-2); margin-top: 32px; font-size: 18px; }
+  h4 { color: var(--accent); margin-top: 24px; margin-bottom: 8px; font-size: 15px; }
+  p { color: var(--text); }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: var(--accent-2); }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 13px; line-height: 1.5; color: var(--code-text); font-family: "SF Mono", Menlo, Consolas, monospace; }
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  .filepath { display: inline-block; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; background: var(--panel-2); color: var(--accent); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; background: var(--panel); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .callout { border-left: 4px solid var(--accent); background: rgba(56, 189, 248, 0.08); padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+  .callout.warn { border-color: var(--warn); background: rgba(249, 115, 22, 0.08); }
+  .callout.ok { border-color: var(--ok); background: rgba(74, 222, 128, 0.08); }
+  .callout strong { color: #fff; }
+  .ascii-tree { background: var(--code-bg); padding: 16px 20px; border-radius: 8px; border: 1px solid var(--border); color: var(--code-text); font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre; overflow-x: auto; }
+  .step { display: flex; gap: 16px; align-items: flex-start; margin: 16px 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  .step-num { flex: 0 0 32px; height: 32px; background: var(--accent); color: var(--bg); font-weight: 700; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 14px; }
+  .step-body { flex: 1; }
+  .step-body h4 { margin-top: 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; text-align: center; }
+  @media (max-width: 720px) { nav.toc ol { columns: 1; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>User &harr; Location Relationship — Integration Plan</h1>
+  <div class="sub">Linking users to the existing <code>admin_areas</code> hierarchy so we can answer &ldquo;where does this user live / operate?&rdquo; and drive region-based features.</div>
+  <div class="meta">
+    <span class="badge accent">Laravel 13</span>
+    <span class="badge accent">PHP 8.4</span>
+    <span class="badge">Builds on Location Management plan</span>
+    <span class="badge ok">Country-agnostic</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#goals">Goals &amp; Use Cases</a></li>
+    <li><a href="#options">Design Options &amp; Trade-offs</a></li>
+    <li><a href="#decision">Recommended Approach</a></li>
+    <li><a href="#schema">Schema</a></li>
+    <li><a href="#model">Model &amp; Relationships</a></li>
+    <li><a href="#validation">Validation &amp; Form Requests</a></li>
+    <li><a href="#api">API Endpoints</a></li>
+    <li><a href="#permissions">Permissions</a></li>
+    <li><a href="#queries">Useful Queries</a></li>
+    <li><a href="#tests">Tests</a></li>
+    <li><a href="#steps">Step-by-Step Implementation Order</a></li>
+    <li><a href="#future">Future Extensions</a></li>
+  </ol>
+</nav>
+
+<!-- ================= GOALS ================= -->
+<h2 id="goals">1. Goals &amp; Use Cases</h2>
+
+<p>The <code>admin_areas</code> table already gives us a recursive tree per country (for BD: Division &rarr; District &rarr; Upazila &rarr; Postal Code). The next step is to <strong>attach users to that tree</strong> so the app can answer:</p>
+<ul>
+  <li>Where does user <code>#42</code> live? (full hierarchy)</li>
+  <li>List all users in Dhaka division / Demra upazila / postal code 1360.</li>
+  <li>Drive cascading address dropdowns on the user profile form.</li>
+  <li>Drive future delivery / serviceable-region / region-based pricing rules.</li>
+</ul>
+
+<p>The design must be:</p>
+<ul>
+  <li><strong>Country-agnostic</strong> &mdash; same model works for BD now, US/IN later.</li>
+  <li><strong>Hierarchy-aware</strong> &mdash; storing the leaf (e.g. postal code) is enough; ancestors are derivable via the existing adjacency-list trait.</li>
+  <li><strong>Extendable</strong> &mdash; today &ldquo;the user&rsquo;s location&rdquo;; tomorrow billing/shipping/work addresses, lat/lon, delivery instructions.</li>
+</ul>
+
+<!-- ================= OPTIONS ================= -->
+<h2 id="options">2. Design Options &amp; Trade-offs</h2>
+
+<table>
+  <thead>
+    <tr><th>Option</th><th>Where the FK lives</th><th>Pros</th><th>Cons</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A.</strong> Single FK column on <code>users</code></td>
+      <td><code>users.admin_area_id</code> (nullable) &rarr; <code>admin_areas.id</code></td>
+      <td>Simplest. One join to get location. Ancestors derivable.</td>
+      <td>One location per user. No room for street / lat-lon / label. Schema change to <code>users</code> every time location semantics grow.</td>
+    </tr>
+    <tr>
+      <td><strong>B.</strong> Separate <code>user_addresses</code> table (1&rarr;many)</td>
+      <td><code>user_addresses.admin_area_id</code></td>
+      <td>Multiple addresses (home / work / billing / shipping). Street / lat-lon / label / primary flag. Doesn&rsquo;t bloat <code>users</code>. Future-proof for orders.</td>
+      <td>One extra table; one extra controller surface area.</td>
+    </tr>
+    <tr>
+      <td><strong>C.</strong> Many-to-many pivot</td>
+      <td><code>admin_area_user</code> pivot</td>
+      <td>Useful for &ldquo;user serves regions&rdquo; semantics.</td>
+      <td>Wrong shape for an address &mdash; no place for street / lat-lon / per-address label.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>Decision driver:</strong> the moment the product needs even one of {billing address, multiple addresses, latitude/longitude, delivery notes}, Option&nbsp;A becomes the wrong shape. Option&nbsp;B is the same complexity to build today and avoids a painful migration later.
+</div>
+
+<!-- ================= DECISION ================= -->
+<h2 id="decision">3. Recommended Approach</h2>
+
+<p>Go with <strong>Option B &mdash; a dedicated <code>user_addresses</code> table</strong>. Each row points to a single <code>admin_areas.id</code> (typically the deepest available leaf for the country, e.g. <code>POSTAL_CODE</code> for BD), plus optional street / lat-lon / label / primary fields. A user can have N addresses; one is marked <code>is_primary</code>.</p>
+
+<p>Country and intermediate ancestors (division/district/upazila) are <strong>derived</strong> from <code>admin_area_id</code> at read time via the <code>HasRecursiveRelationships</code> trait already on <code>AdminArea</code>. No duplication.</p>
+
+<div class="ascii-tree">users
+  &uarr; (hasMany)
+user_addresses
+  - admin_area_id  ----> admin_areas (recursive tree)
+  - is_primary
+  - label (home | work | billing | shipping | other)
+  - address_line1 / address_line2
+  - latitude / longitude
+  - notes</div>
+
+<!-- ================= SCHEMA ================= -->
+<h2 id="schema">4. Schema</h2>
+
+<h3>4.1 <code>user_addresses</code></h3>
+
+<table>
+  <thead>
+    <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>bigint, PK</td><td>auto-increment</td></tr>
+    <tr><td><code>user_id</code></td><td>foreignId &rarr; <code>users.id</code></td><td><code>cascadeOnDelete()</code> &mdash; deleting the user wipes their addresses.</td></tr>
+    <tr><td><code>admin_area_id</code></td><td>foreignId &rarr; <code>admin_areas.id</code></td><td><code>restrictOnDelete()</code> &mdash; can&rsquo;t delete a region that has bound users.</td></tr>
+    <tr><td><code>label</code></td><td>tinyInt (enum-backed)</td><td>Home / Work / Billing / Shipping / Other.</td></tr>
+    <tr><td><code>is_primary</code></td><td>boolean</td><td>Exactly one primary per user enforced in app logic (or partial unique index on Postgres).</td></tr>
+    <tr><td><code>address_line1</code></td><td>string(255), nullable</td><td>House / road / village level free text.</td></tr>
+    <tr><td><code>address_line2</code></td><td>string(255), nullable</td><td>Apartment / landmark.</td></tr>
+    <tr><td><code>latitude</code></td><td>decimal(10,7), nullable</td><td>For map / distance queries later.</td></tr>
+    <tr><td><code>longitude</code></td><td>decimal(10,7), nullable</td><td>Pair with latitude.</td></tr>
+    <tr><td><code>notes</code></td><td>text, nullable</td><td>Delivery instructions, gate code, etc.</td></tr>
+    <tr><td><code>created_at</code> / <code>updated_at</code></td><td>timestamps</td><td>standard</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Indexes:</strong></p>
+<ul>
+  <li>Composite index <code>(user_id, is_primary)</code> &mdash; fast &ldquo;primary address for a user&rdquo; lookups.</li>
+  <li>Index on <code>admin_area_id</code> &mdash; fast &ldquo;users in region X&rdquo; reverse lookups.</li>
+</ul>
+
+<h3>4.2 Migration file</h3>
+
+<div class="filepath">database/migrations/2026_05_27_010000_create_user_addresses_table.php</div>
+<pre><code>use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('user_addresses', function (Blueprint $table): void {
+            $table-&gt;id();
+            $table-&gt;foreignId('user_id')-&gt;constrained()-&gt;cascadeOnDelete();
+            $table-&gt;foreignId('admin_area_id')-&gt;constrained()-&gt;restrictOnDelete();
+            $table-&gt;tinyInteger('label')-&gt;default(1); // Home
+            $table-&gt;boolean('is_primary')-&gt;default(false);
+            $table-&gt;string('address_line1')-&gt;nullable();
+            $table-&gt;string('address_line2')-&gt;nullable();
+            $table-&gt;decimal('latitude', 10, 7)-&gt;nullable();
+            $table-&gt;decimal('longitude', 10, 7)-&gt;nullable();
+            $table-&gt;text('notes')-&gt;nullable();
+            $table-&gt;timestamps();
+
+            $table-&gt;index(['user_id', 'is_primary']);
+            $table-&gt;index('admin_area_id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('user_addresses');
+    }
+};</code></pre>
+
+<div class="callout">
+  <strong>Postgres extra:</strong> add a partial unique index to guarantee at most one primary per user:
+  <pre><code>$table-&gt;unique(['user_id'])
+    -&gt;where('is_primary', true)
+    -&gt;name('user_addresses_one_primary_per_user');</code></pre>
+  Skip on SQLite (used in tests) &mdash; enforce there in app logic.
+</div>
+
+<h3>4.3 <code>UserAddressLabelEnum</code></h3>
+
+<div class="filepath">app/Enums/UserAddressLabelEnum.php</div>
+<pre><code>namespace App\Enums;
+
+enum UserAddressLabelEnum: int
+{
+    case Home     = 1;
+    case Work     = 2;
+    case Billing  = 3;
+    case Shipping = 4;
+    case Other    = 99;
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Home     =&gt; 'Home',
+            self::Work     =&gt; 'Work',
+            self::Billing  =&gt; 'Billing',
+            self::Shipping =&gt; 'Shipping',
+            self::Other    =&gt; 'Other',
+        };
+    }
+}</code></pre>
+
+<!-- ================= MODEL ================= -->
+<h2 id="model">5. Model &amp; Relationships</h2>
+
+<h3>5.1 <code>UserAddress</code> model</h3>
+
+<div class="filepath">app/Models/UserAddress.php</div>
+<pre><code>namespace App\Models;
+
+use App\Enums\UserAddressLabelEnum;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+#[Fillable([
+    'user_id', 'admin_area_id', 'label', 'is_primary',
+    'address_line1', 'address_line2', 'latitude', 'longitude', 'notes',
+])]
+class UserAddress extends Model
+{
+    protected function casts(): array
+    {
+        return [
+            'label'      =&gt; UserAddressLabelEnum::class,
+            'is_primary' =&gt; 'boolean',
+            'latitude'   =&gt; 'decimal:7',
+            'longitude'  =&gt; 'decimal:7',
+        ];
+    }
+
+    /** @return BelongsTo&lt;User, $this&gt; */
+    public function user(): BelongsTo
+    {
+        return $this-&gt;belongsTo(User::class);
+    }
+
+    /** @return BelongsTo&lt;AdminArea, $this&gt; */
+    public function adminArea(): BelongsTo
+    {
+        return $this-&gt;belongsTo(AdminArea::class);
+    }
+}</code></pre>
+
+<h3>5.2 Add relationships to <code>User</code></h3>
+
+<div class="filepath">app/Models/User.php (additions)</div>
+<pre><code>use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+/** @return HasMany&lt;UserAddress, $this&gt; */
+public function addresses(): HasMany
+{
+    return $this-&gt;hasMany(UserAddress::class);
+}
+
+/** @return HasOne&lt;UserAddress, $this&gt; */
+public function primaryAddress(): HasOne
+{
+    return $this-&gt;hasOne(UserAddress::class)-&gt;where('is_primary', true);
+}</code></pre>
+
+<h3>5.3 Walking the hierarchy from an address</h3>
+
+<p>Because <code>AdminArea</code> uses <code>HasRecursiveRelationships</code>, getting the full chain is one call:</p>
+
+<pre><code>$user = User::with('primaryAddress.adminArea')-&gt;find($id);
+
+// Full ancestry of that address (Division &rarr; District &rarr; Upazila &rarr; Postal Code)
+$chain = $user-&gt;primaryAddress-&gt;adminArea
+    -&gt;ancestorsAndSelf()
+    -&gt;orderBy('depth')
+    -&gt;get();</code></pre>
+
+<!-- ================= VALIDATION ================= -->
+<h2 id="validation">6. Validation &amp; Form Requests</h2>
+
+<h3>6.1 <code>StoreUserAddressRequest</code></h3>
+
+<div class="filepath">app/Http/Requests/Admin/User/StoreUserAddressRequest.php</div>
+<pre><code>public function rules(): array
+{
+    return [
+        'admin_area_id'  =&gt; ['required', 'integer', 'exists:admin_areas,id'],
+        'label'          =&gt; ['required', new Enum(UserAddressLabelEnum::class)],
+        'is_primary'     =&gt; ['boolean'],
+        'address_line1'  =&gt; ['nullable', 'string', 'max:255'],
+        'address_line2'  =&gt; ['nullable', 'string', 'max:255'],
+        'latitude'       =&gt; ['nullable', 'numeric', 'between:-90,90'],
+        'longitude'      =&gt; ['nullable', 'numeric', 'between:-180,180'],
+        'notes'          =&gt; ['nullable', 'string'],
+    ];
+}
+
+public function withValidator(Validator $validator): void
+{
+    $validator-&gt;after(function ($v): void {
+        $areaId = (int) $this-&gt;input('admin_area_id');
+        $area = AdminArea::query()-&gt;find($areaId);
+
+        if ($area &amp;&amp; ! $area-&gt;is_active) {
+            $v-&gt;errors()-&gt;add('admin_area_id', 'This location is not active.');
+        }
+        // Optional: enforce leaf-level pick (deepest depth for the country)
+        // $deepest = CountryAdminStructure::where('country_id', $area-&gt;country_id)-&gt;max('depth');
+        // if ($area &amp;&amp; $area-&gt;depth !== $deepest) {
+        //     $v-&gt;errors()-&gt;add('admin_area_id', 'Pick a leaf-level location (e.g. postal code).');
+        // }
+    });
+}</code></pre>
+
+<div class="callout warn">
+  <strong>Choose the granularity policy up front:</strong>
+  <ul>
+    <li><strong>Lenient</strong> &mdash; accept any depth. Useful when partial addresses are OK (&ldquo;user is in Dhaka division&rdquo;).</li>
+    <li><strong>Strict</strong> &mdash; require the deepest level for that country (postal code for BD). Cleaner for reporting, harder for users without a postal code.</li>
+  </ul>
+  Default to <strong>lenient</strong> for v1; flip to strict by uncommenting the check above.
+</div>
+
+<h3>6.2 Primary-address uniqueness</h3>
+
+<p>One primary per user, enforced in the controller: on a save where <code>is_primary=true</code>, run <code>UserAddress::where('user_id', $userId)-&gt;update(['is_primary' =&gt; false])</code> inside a transaction before saving the new row.</p>
+
+<!-- ================= API ================= -->
+<h2 id="api">7. API Endpoints</h2>
+
+<p>Nested under the existing <code>/admin/users</code> module. Read access piggy-backs on <code>admins.view</code>; write access on <code>admins.update</code> (rationale: managing a user&rsquo;s address is part of managing the user, not a separate concern). If you want a separate permission, see &sect;8.</p>
+
+<table>
+  <thead>
+    <tr><th>Method</th><th>Path</th><th>Action</th><th>Permission</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GET</td><td><code>/admin/admin-users/{admin_user}/addresses</code></td><td>List</td><td><code>admins.view</code></td></tr>
+    <tr><td>POST</td><td><code>/admin/admin-users/{admin_user}/addresses</code></td><td>Create</td><td><code>admins.update</code></td></tr>
+    <tr><td>PUT</td><td><code>/admin/admin-users/{admin_user}/addresses/{address}</code></td><td>Update</td><td><code>admins.update</code></td></tr>
+    <tr><td>DELETE</td><td><code>/admin/admin-users/{admin_user}/addresses/{address}</code></td><td>Delete</td><td><code>admins.update</code></td></tr>
+  </tbody>
+</table>
+
+<h3>7.1 Routes snippet</h3>
+
+<div class="filepath">routes/api.php (inside the admin auth group)</div>
+<pre><code>Route::controller(UserAddressController::class)
+    -&gt;prefix('admin-users/{admin_user}/addresses')
+    -&gt;middleware('permission:admins.update,sanctum')
+    -&gt;group(function (): void {
+        Route::get('/',           'index')-&gt;middleware('permission:admins.view,sanctum');
+        Route::post('/',          'store');
+        Route::put('{address}',   'update');
+        Route::delete('{address}','destroy');
+    });</code></pre>
+
+<h3>7.2 Resource shape</h3>
+
+<div class="filepath">app/Http/Resources/Admin/UserAddressResource.php</div>
+<pre><code>public function toArray(Request $request): array
+{
+    return [
+        'id'             =&gt; $this-&gt;id,
+        'label'          =&gt; $this-&gt;label?-&gt;label(),
+        'label_value'    =&gt; $this-&gt;label?-&gt;value,
+        'is_primary'     =&gt; $this-&gt;is_primary,
+        'address_line1'  =&gt; $this-&gt;address_line1,
+        'address_line2'  =&gt; $this-&gt;address_line2,
+        'latitude'       =&gt; $this-&gt;latitude,
+        'longitude'      =&gt; $this-&gt;longitude,
+        'notes'          =&gt; $this-&gt;notes,
+        'admin_area'     =&gt; AdminAreaResource::make($this-&gt;whenLoaded('adminArea')),
+        'hierarchy'      =&gt; $this-&gt;when(
+            $this-&gt;relationLoaded('adminArea'),
+            fn () =&gt; $this-&gt;adminArea?-&gt;ancestorsAndSelf()
+                -&gt;orderBy('depth')
+                -&gt;get()
+                -&gt;map(fn ($a) =&gt; ['level' =&gt; $a-&gt;level?-&gt;code, 'name' =&gt; $a-&gt;name])
+                -&gt;values(),
+        ),
+    ];
+}</code></pre>
+
+<!-- ================= PERMISSIONS ================= -->
+<h2 id="permissions">8. Permissions</h2>
+
+<p>Two paths:</p>
+
+<ol>
+  <li><strong>Re-use existing</strong> &mdash; <code>admins.view</code> / <code>admins.update</code>. Simpler, no new permissions to seed. <em>Recommended for v1.</em></li>
+  <li><strong>Dedicated</strong> &mdash; add <code>users.addresses.view</code>, <code>users.addresses.update</code> in <code>PermissionSeeder</code> if address management needs to be delegated independently (e.g. a CSR role can edit addresses but not the user&rsquo;s role/status).</li>
+</ol>
+
+<!-- ================= QUERIES ================= -->
+<h2 id="queries">9. Useful Queries</h2>
+
+<h3>9.1 All users in a division</h3>
+<pre><code>// $division is an AdminArea at depth=1
+$userIds = UserAddress::query()
+    -&gt;whereIn('admin_area_id', $division-&gt;descendantsAndSelf()-&gt;select('id'))
+    -&gt;pluck('user_id')
+    -&gt;unique();</code></pre>
+
+<h3>9.2 Users grouped by upazila</h3>
+<pre><code>UserAddress::query()
+    -&gt;join('admin_areas', 'admin_areas.id', '=', 'user_addresses.admin_area_id')
+    -&gt;where('admin_areas.depth', 3) // upazila
+    -&gt;selectRaw('admin_areas.id, admin_areas.name, COUNT(DISTINCT user_addresses.user_id) AS user_count')
+    -&gt;groupBy('admin_areas.id', 'admin_areas.name')
+    -&gt;orderByDesc('user_count')
+    -&gt;get();</code></pre>
+
+<h3>9.3 User list view with primary location string</h3>
+<pre><code>$users = User::query()
+    -&gt;with(['primaryAddress.adminArea.level'])
+    -&gt;paginate(20);
+
+// In the resource:
+// "primary_location" =&gt; $user-&gt;primaryAddress?-&gt;adminArea?-&gt;name</code></pre>
+
+<!-- ================= TESTS ================= -->
+<h2 id="tests">10. Tests</h2>
+
+<table>
+  <thead><tr><th>File</th><th>Covers</th></tr></thead>
+  <tbody>
+    <tr><td><code>tests/Feature/Admin/UserAddressTest.php</code></td><td>Permission gating, CRUD happy path, primary-uniqueness on save, validation (invalid admin_area_id, inactive area, lat/lon range), cascade-delete with user.</td></tr>
+    <tr><td><code>tests/Unit/Models/UserAddressTest.php</code></td><td>Eloquent casts, label enum coercion, hierarchy traversal via <code>adminArea.ancestorsAndSelf()</code>.</td></tr>
+  </tbody>
+</table>
+
+<p>Test data: rely on the existing <code>LocationDataSeeder</code> to provide BD admin_areas. Use a factory for <code>UserAddress</code>:</p>
+
+<pre><code>// database/factories/UserAddressFactory.php
+public function definition(): array
+{
+    return [
+        'user_id'       =&gt; User::factory(),
+        'admin_area_id' =&gt; AdminArea::query()
+            -&gt;where('code', '1360')
+            -&gt;value('id') ?? AdminArea::factory(),
+        'label'         =&gt; UserAddressLabelEnum::Home,
+        'is_primary'    =&gt; true,
+        'address_line1' =&gt; fake()-&gt;streetAddress(),
+    ];
+}</code></pre>
+
+<!-- ================= STEPS ================= -->
+<h2 id="steps">11. Step-by-Step Implementation Order</h2>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <h4>Migration</h4>
+    <p><code>php artisan make:migration create_user_addresses_table</code>. Paste the schema from &sect;4.2. Run <code>php artisan migrate</code>.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <h4>Enum + Model + Factory</h4>
+    <p><code>php artisan make:enum Enums/UserAddressLabelEnum --string=false</code> (or hand-write). <code>php artisan make:model UserAddress -mf</code> &mdash; then replace the generated bodies with &sect;5.1 and the factory from &sect;10.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-body">
+    <h4>Wire User relationships</h4>
+    <p>Add <code>addresses()</code> and <code>primaryAddress()</code> to <code>App\Models\User</code> (&sect;5.2).</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-body">
+    <h4>Form Requests</h4>
+    <p><code>StoreUserAddressRequest</code>, <code>UpdateUserAddressRequest</code> under <code>App\Http\Requests\Admin\User</code>. Identical rules; update can mark fields optional via <code>sometimes</code>.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">5</div>
+  <div class="step-body">
+    <h4>Controller</h4>
+    <p><code>App\Http\Controllers\Admin\UserAddressController</code> with <code>index/store/update/destroy</code>. On save, if <code>is_primary=true</code>, unset other primaries in a transaction.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">6</div>
+  <div class="step-body">
+    <h4>API Resource</h4>
+    <p><code>UserAddressResource</code> per &sect;7.2, projecting label, hierarchy, and coords.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">7</div>
+  <div class="step-body">
+    <h4>Routes</h4>
+    <p>Nest under <code>/admin/admin-users/{admin_user}/addresses</code> with the existing controller-group pattern (&sect;7.1).</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">8</div>
+  <div class="step-body">
+    <h4>Tests</h4>
+    <p>Feature tests for permission gating + CRUD + primary-uniqueness. Run with <code>php artisan test --compact tests/Feature/Admin/UserAddressTest.php</code>.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">9</div>
+  <div class="step-body">
+    <h4>Postman</h4>
+    <p>Add a &ldquo;User Addresses&rdquo; folder under the Admin Users collection with the 4 requests; reuse <code>{{auth_token}}</code> bearer auth.</p>
+  </div>
+</div>
+
+<!-- ================= FUTURE ================= -->
+<h2 id="future">12. Future Extensions</h2>
+
+<ul>
+  <li><strong>Geo distance queries</strong> &mdash; once <code>latitude</code>/<code>longitude</code> are populated, add a <code>nearby($lat, $lng, $kmRadius)</code> scope on <code>UserAddress</code> using the Haversine formula (works on Postgres without PostGIS via raw SQL).</li>
+  <li><strong>Address verification</strong> &mdash; integrate a postal API to verify postal_code &harr; upazila correctness on save.</li>
+  <li><strong>Country switch</strong> &mdash; UI cascade: user picks country first, then division/district/upazila/postal-code dropdowns drive off the existing <code>/admin/locations</code> endpoints.</li>
+  <li><strong>Soft deletes</strong> &mdash; if addresses are referenced by future tables (orders, invoices), add <code>SoftDeletes</code> on <code>UserAddress</code> so historical data stays intact.</li>
+  <li><strong>Audit log</strong> &mdash; log address changes through an observer + the existing activity-log pipeline once that lands.</li>
+</ul>
+
+<hr>
+
+<footer>
+  Builds on the existing <em>Location Management</em> plan. Read alongside that document &mdash; this plan touches no <code>admin_areas</code> schema changes, only adds <code>user_addresses</code>.
+</footer>
+
+</div>
+</body>
+</html>

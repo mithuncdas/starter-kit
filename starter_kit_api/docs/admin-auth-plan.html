@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Authentication — Implementation Plan</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --panel-2: #111827;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-2: #a78bfa;
+            --good: #34d399;
+            --warn: #fbbf24;
+            --danger: #f87171;
+            --border: #334155;
+            --code-bg: #0b1220;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+        header {
+            padding: 28px 32px;
+            background: linear-gradient(135deg, #1e293b 0%, #312e81 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 28px;
+        }
+        header h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.02em; }
+        header p { margin: 0; color: var(--muted); }
+        .meta {
+            display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px;
+        }
+        .pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(56,189,248,0.12); color: var(--accent);
+            border: 1px solid rgba(56,189,248,0.3);
+            padding: 4px 10px; border-radius: 999px; font-size: 12px;
+        }
+        h2 {
+            font-size: 20px; margin: 32px 0 12px;
+            padding-bottom: 8px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+        }
+        h2 .num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 8px;
+            background: var(--accent); color: #0b1220; font-size: 14px; font-weight: 700;
+        }
+        h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent-2); }
+        .card {
+            background: var(--panel); border: 1px solid var(--border);
+            border-radius: 12px; padding: 18px 20px; margin: 12px 0;
+        }
+        code, pre {
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+            font-size: 13px;
+        }
+        code { background: var(--code-bg); color: #f8fafc; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); }
+        pre {
+            background: var(--code-bg); color: #f8fafc; padding: 16px;
+            border: 1px solid var(--border); border-radius: 10px;
+            overflow-x: auto; margin: 8px 0;
+        }
+        pre code { background: transparent; border: 0; padding: 0; }
+        ul, ol { padding-left: 22px; }
+        li { margin: 4px 0; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 12px 0;
+            background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+        }
+        th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+        th { background: #1f2937; color: var(--accent); font-weight: 600; }
+        tr:last-child td { border-bottom: 0; }
+        .method {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-weight: 700; font-size: 11px;
+        }
+        .m-post { background: rgba(52,211,153,0.15); color: var(--good); }
+        .m-get  { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .m-put  { background: rgba(251,191,36,0.15); color: var(--warn); }
+        .m-del  { background: rgba(248,113,113,0.15); color: var(--danger); }
+        .note { border-left: 4px solid var(--accent); padding-left: 14px; color: var(--muted); margin: 10px 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+        .check { color: var(--good); }
+        .flow {
+            background: var(--panel-2); border: 1px dashed var(--border); border-radius: 10px;
+            padding: 14px; font-family: monospace; white-space: pre; overflow-x: auto;
+            color: #cbd5e1; font-size: 13px;
+        }
+        footer { color: var(--muted); margin-top: 36px; font-size: 12px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <header>
+        <h1>Admin Authentication — Implementation Plan</h1>
+        <p>Sanctum token-based auth on the <code>User</code> model with <code>user_type</code> + <code>status</code> enums, scoped under an <strong>Admin</strong> namespace and <code>/api/admin</code> URL prefix. <strong>Single shared <code>sanctum</code> guard</strong> — admin vs. user is enforced via <code>user_type</code> + a thin <code>admin</code> middleware.</p>
+        <div class="meta">
+            <span class="pill">Laravel 13</span>
+            <span class="pill">PHP 8.4</span>
+            <span class="pill">Sanctum 4</span>
+            <span class="pill">PHPUnit 12</span>
+            <span class="pill">PostgreSQL 15</span>
+        </div>
+    </header>
+
+    <h2><span class="num">1</span> Goals &amp; Scope</h2>
+    <div class="card">
+        <ul>
+            <li>Single <code>users</code> table for both Admin and regular User accounts, distinguished via <code>user_type</code>.</li>
+            <li>Token-based authentication via <strong>Laravel Sanctum</strong> (<code>HasApiTokens</code>).</li>
+            <li>All admin endpoints live under <code>/api/admin/*</code> and use the <code>Admin\</code> namespace for controllers, requests, services, resources, notifications.</li>
+            <li>Endpoints: <strong>login, logout, forgot password, reset password, profile view, profile update, change password</strong>.</li>
+            <li>Reset-password &amp; change-password flows must <strong>revoke all other Sanctum tokens</strong> (logout other devices).</li>
+            <li>Rate limiting on <strong>login</strong>, <strong>forgot password</strong>, and <strong>reset password</strong>.</li>
+            <li>100% test coverage of happy + failure + edge paths for every endpoint.</li>
+        </ul>
+    </div>
+
+    <h2><span class="num">2</span> Enums</h2>
+    <div class="grid">
+        <div class="card">
+            <h3>App\Enums\UserTypeEnum</h3>
+            <pre><code>case User  = 0;
+case Admin = 1;</code></pre>
+            <p style="margin:0;color:var(--muted);font-size:13px;">Stored as <code>tinyInteger</code>. Default <code>0</code> (User).</p>
+        </div>
+        <div class="card">
+            <h3>App\Enums\UserStatusEnum</h3>
+            <pre><code>case Deactive = 0;
+case Active   = 1;</code></pre>
+            <p style="margin:0;color:var(--muted);font-size:13px;">Stored as <code>tinyInteger</code>. Default <code>1</code> (Active).</p>
+        </div>
+    </div>
+
+    <h2><span class="num">3</span> Database Changes</h2>
+    <div class="card">
+        <h3>Edit the existing users migration</h3>
+        <p>No new migration for these columns &mdash; we modify <code>database/migrations/0001_01_01_000000_create_users_table.php</code> directly and add the two columns inside the existing <code>Schema::create('users', ...)</code> closure:</p>
+        <pre><code>$table->tinyInteger('user_type')->default(UserTypeEnum::User->value)->index();
+$table->tinyInteger('status')->default(UserStatusEnum::Active->value)->index();</code></pre>
+        <p class="note">Safe because this project hasn't shipped &mdash; we'll <code>php artisan migrate:fresh</code> in the container. Never edit a migration that has already run in production.</p>
+        <h3>New migration</h3>
+        <ul>
+            <li>Generic <code>otps</code> table with <code>email</code> + <code>phone</code> columns (see §5a).</li>
+        </ul>
+        <h3>Existing tables reused</h3>
+        <ul>
+            <li><code>users</code> &mdash; primary user store (gets the two new columns above).</li>
+            <li><code>personal_access_tokens</code> &mdash; already created by Sanctum.</li>
+            <li><code>password_reset_tokens</code> &mdash; <strong>not used</strong> (OTP flow replaces it).</li>
+        </ul>
+    </div>
+
+    <h2><span class="num">4</span> Model Updates</h2>
+    <div class="card">
+        <ul>
+            <li>Add <code>HasApiTokens</code> trait to <code>App\Models\User</code>.</li>
+            <li>Add <code>user_type</code> and <code>status</code> to <code>$fillable</code> (or <code>#[Fillable]</code> attribute).</li>
+            <li>Cast: <code>'user_type' =&gt; UserTypeEnum::class</code>, <code>'status' =&gt; UserStatusEnum::class</code>.</li>
+            <li>Helper scopes: <code>scopeAdmins()</code>, <code>scopeActive()</code>; helper: <code>isAdmin()</code>.</li>
+        </ul>
+    </div>
+
+    <h2><span class="num">5</span> Auth Config &amp; Middleware</h2>
+    <div class="card">
+        <p><strong>No separate admin guard.</strong> Both users and admins authenticate via the same <code>sanctum</code> guard. Admin-only routes are gated by a custom <code>admin</code> middleware that checks the authenticated user's <code>user_type</code> and <code>status</code>.</p>
+<pre><code>// app/Http/Middleware/EnsureAdmin.php
+if (! $request-&gt;user() || ! $request-&gt;user()-&gt;isAdmin() || ! $request-&gt;user()-&gt;isActive()) {
+    abort(403, 'Admin access required.');
+}</code></pre>
+        <p>Registered as the alias <code>admin</code> in <code>bootstrap/app.php</code>. Applied after <code>auth:sanctum</code> on all admin-protected routes:</p>
+        <pre><code>Route::middleware(['auth:sanctum', 'admin'])-&gt;group(...);</code></pre>
+        <p>Password reset is <strong>OTP-based (6-digit, 5-minute expiry)</strong> — Laravel's <code>password_reset_tokens</code> table and password broker are <em>not</em> used for admin reset. See §6a for the OTP model/table and §9 for the flow.</p>
+    </div>
+
+    <h2><span class="num">5b</span> API Response Convention</h2>
+    <div class="card">
+        <h3>Trait: <code>App\Http\Responses\ApiResponder</code></h3>
+        <p>All controllers <code>use ApiResponder;</code> and call <code>$this->success(...)</code> / <code>$this->error(...)</code>. Never build a raw <code>response()->json(...)</code> in a controller.</p>
+<pre><code>// Success
+$this->success(data: $resourceOrArray, message: 'OK', status: 200): JsonResponse
+// Error
+$this->error(message: 'Something went wrong', status: 400, errors: $detailsOrNull): JsonResponse</code></pre>
+        <p>Standard response shape:</p>
+<pre><code>// 2xx
+{ "success": true,  "message": "OK",         "data": {...} }
+// 4xx / 5xx
+{ "success": false, "message": "Bad input",  "errors":  {...} | null }</code></pre>
+        <h3>Resources are mandatory</h3>
+        <ul>
+            <li>Any model (or collection) returned to the client <strong>must</strong> be wrapped in an API Resource — never expose Eloquent models directly.</li>
+            <li>Admin endpoints use <code>App\Http\Resources\Admin\AdminResource</code> for the authenticated admin.</li>
+            <li>The login endpoint returns <code>['token' =&gt; $plain, 'admin' =&gt; AdminResource::make($user)-&gt;resolve()]</code> via <code>$this-&gt;success()</code>.</li>
+        </ul>
+    </div>
+
+    <h2><span class="num">5a</span> OTP Storage (generic)</h2>
+    <div class="card">
+        <h3>Model: <code>App\Models\Otp</code> &nbsp;·&nbsp; Table: <code>otps</code></h3>
+        <p>Generic OTP store supporting <strong>email and phone</strong> channels. The admin password-reset flow always uses the <code>email</code> column for now; the <code>phone</code> column is in place so future flows (e.g. user phone verification, 2FA) can reuse the same table and service without a schema migration.</p>
+        <table>
+            <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr><td>id</td><td>bigint PK</td><td>auto-increment</td></tr>
+                <tr><td>email</td><td>string, nullable, indexed</td><td>Used by email-channel OTPs (e.g. admin password reset)</td></tr>
+                <tr><td>phone</td><td>string, nullable, indexed</td><td>Reserved for future SMS OTP flows; nullable for now</td></tr>
+                <tr><td>otp</td><td>string</td><td><strong>Hashed</strong> (bcrypt) — never store plaintext OTPs</td></tr>
+                <tr><td>expires_at</td><td>timestamp</td><td>created_at + 5 min</td></tr>
+                <tr><td>created_at / updated_at</td><td>timestamps</td><td>standard</td></tr>
+            </tbody>
+        </table>
+        <p class="note">DB-level CHECK that at least one of <code>email</code>/<code>phone</code> is non-null would be ideal; for portability we'll enforce it in the service layer instead.</p>
+        <h3>Service: <code>App\Services\OtpService</code></h3>
+        <p>Generic — accepts a channel + identifier. Two channel constants: <code>OtpService::CHANNEL_EMAIL</code>, <code>OtpService::CHANNEL_PHONE</code>.</p>
+        <pre><code>OtpService::issue(channel: 'email', identifier: $email): string  // returns plaintext OTP
+OtpService::verify(channel: 'email', identifier: $email, otp: $otp): bool
+OtpService::purge(channel: 'email', identifier: $email): void   // delete ALL rows for that contact</code></pre>
+        <h3>Rules</h3>
+        <ul>
+            <li><strong>Issue:</strong> first delete <em>expired</em> rows for that <code>(channel, identifier)</code>; if a <em>non-expired</em> row still exists, throw &rarr; controller responds <code>422</code> (&ldquo;An OTP was already sent &mdash; please wait until it expires.&rdquo;).</li>
+            <li><strong>Verify:</strong> find the latest row for <code>(channel, identifier)</code> where <code>expires_at &gt; now()</code>, then <code>Hash::check()</code> the supplied OTP. On success: caller invokes <code>purge()</code> to delete ALL rows for that contact, updates password, and revokes ALL Sanctum tokens.</li>
+            <li>Plaintext OTP is generated server-side, hashed before insert, and sent via the appropriate channel (Notification for email today, SMS gateway later); plaintext is never persisted.</li>
+        </ul>
+    </div>
+
+    <h2><span class="num">6</span> Folder Structure</h2>
+    <div class="card">
+        <pre><code>app/
+├── Enums/
+│   ├── UserTypeEnum.php
+│   └── UserStatusEnum.php
+├── Http/
+│   ├── Controllers/Admin/
+│   │   ├── AuthController.php
+│   │   ├── PasswordController.php
+│   │   └── ProfileController.php
+│   ├── Middleware/
+│   │   └── EnsureAdmin.php
+│   ├── Responses/
+│   │   └── ApiResponder.php             // trait, success() / error()
+│   ├── Requests/Admin/
+│   │   ├── LoginRequest.php
+│   │   ├── ForgotPasswordRequest.php
+│   │   ├── ResetPasswordRequest.php
+│   │   ├── ChangePasswordRequest.php
+│   │   └── UpdateProfileRequest.php
+│   └── Resources/Admin/
+│       └── AdminResource.php
+├── Models/
+│   └── Otp.php                          // generic — email or phone
+├── Notifications/Admin/
+│   └── AdminPasswordResetOtpNotification.php
+└── Services/
+    ├── OtpService.php                   // generic — used by anyone
+    └── Admin/
+        └── AdminAuthService.php</code></pre>
+    </div>
+
+    <h2><span class="num">7</span> API Endpoints</h2>
+    <table>
+        <thead>
+            <tr><th>Method</th><th>URI</th><th>Auth</th><th>Rate Limit</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="method m-post">POST</span></td><td>/api/admin/login</td><td>—</td><td>admin-login (5/min/IP+email)</td><td>Issue Sanctum token</td></tr>
+            <tr><td><span class="method m-post">POST</span></td><td>/api/admin/forgot-password</td><td>—</td><td>admin-forgot (3/min/IP+email)</td><td>Email reset link</td></tr>
+            <tr><td><span class="method m-post">POST</span></td><td>/api/admin/reset-password</td><td>—</td><td>admin-reset (5/min/IP+email)</td><td>Verify OTP + set new password + revoke ALL tokens + delete all OTPs</td></tr>
+            <tr><td><span class="method m-post">POST</span></td><td>/api/admin/logout</td><td>auth:sanctum + admin</td><td>—</td><td>Revoke current token</td></tr>
+            <tr><td><span class="method m-get">GET</span></td><td>/api/admin/profile</td><td>auth:sanctum + admin</td><td>—</td><td>View profile</td></tr>
+            <tr><td><span class="method m-put">PUT</span></td><td>/api/admin/profile</td><td>auth:sanctum + admin</td><td>—</td><td>Update name / email</td></tr>
+            <tr><td><span class="method m-post">POST</span></td><td>/api/admin/change-password</td><td>auth:sanctum + admin</td><td>—</td><td>Change password + revoke other tokens</td></tr>
+        </tbody>
+    </table>
+
+    <h2><span class="num">8</span> Rate Limiting Strategy</h2>
+    <div class="card">
+        <p>Defined in <code>App\Providers\AppServiceProvider::boot()</code> using <code>RateLimiter::for()</code>:</p>
+        <ul>
+            <li><code>admin-login</code> — <strong>5</strong>/min, keyed by <code>ip|email</code>.</li>
+            <li><code>admin-forgot</code> — <strong>3</strong>/min, keyed by <code>ip|email</code> (the OTP "already sent" check is the second layer that prevents abuse within the 5-min window).</li>
+            <li><code>admin-reset</code> — <strong>5</strong>/min, keyed by <code>ip|email</code> (prevents OTP brute-force).</li>
+        </ul>
+        <p>Applied via <code>throttle:&lt;name&gt;</code> route middleware.</p>
+    </div>
+
+    <h2><span class="num">9</span> Flows</h2>
+
+    <div class="card">
+        <h3>Login</h3>
+        <div class="flow">POST /api/admin/login { email, password, device_name? }
+   │
+   ├─▶ throttle:admin-login
+   ├─▶ LoginRequest validates
+   ├─▶ AdminAuthService::login()
+   │       ├─ find user where email AND user_type=Admin (any status)
+   │       ├─ if !user OR !Hash::check(password)  →  422 "Invalid credentials"
+   │       ├─ if user->status == Deactive         →  403 "Account is deactivated, please contact administrator"
+   │       └─ $user->createToken($device_name ?? 'admin')
+   └─▶ 200 success({ token, admin: AdminResource })</div>
+    </div>
+
+    <div class="card">
+        <h3>Forgot password (issue OTP)</h3>
+        <div class="flow">POST /api/admin/forgot-password { email }
+   │
+   ├─▶ throttle:admin-forgot
+   ├─▶ Look up admin user (user_type=Admin, any status)
+   │       ├─ not found                  → 422 "No admin account found for this email"
+   │       └─ user->status == Deactive   → 403 "Account is deactivated, please contact administrator"
+   ├─▶ OtpService::issue(channel: 'email', identifier: $email)
+   │       ├─ DELETE FROM otps WHERE email=? AND expires_at <= now()   // cleanup expired
+   │       ├─ if row exists where expires_at > now()  →  throw → controller returns 422 "OTP already sent, wait until it expires"
+   │       ├─ $plain = random 6-digit string  (e.g. "739204")
+   │       ├─ INSERT { email, phone=null, otp = Hash::make($plain), expires_at = now()+5min }
+   │       └─ return $plain
+   ├─▶ Notification::route('mail', $email)->notify(new AdminPasswordResetOtpNotification($plain))
+   └─▶ 200 success(message: "OTP sent to your email")</div>
+        <p class="note">Per product decision, we trade enumeration protection for UX clarity: explicit messages for unknown / deactivated accounts.</p>
+    </div>
+
+    <div class="card">
+        <h3>Reset password (verify OTP)</h3>
+        <div class="flow">POST /api/admin/reset-password { email, otp, password, password_confirmation }
+   │
+   ├─▶ throttle:admin-reset
+   ├─▶ Look up admin user (user_type=Admin, status=Active) — else 422
+   ├─▶ OtpService::verify(channel: 'email', identifier: $email, otp: $otp)
+   │       ├─ row = otps WHERE email=? AND expires_at > now()  ORDER BY id DESC LIMIT 1
+   │       ├─ if !row OR !Hash::check($otp, $row->otp) → throw → 422 "Invalid or expired OTP"
+   │       └─ return true
+   ├─▶ $user->update(['password' => Hash::make($password)])
+   ├─▶ OtpService::purge(channel: 'email', identifier: $email)   ← delete ALL OTPs
+   ├─▶ $user->tokens()->delete()                                  ← LOG OUT ALL DEVICES
+   └─▶ 200 { message: "Password reset successful" }</div>
+    </div>
+
+    <div class="card">
+        <h3>Change password (authenticated)</h3>
+        <div class="flow">POST /api/admin/change-password { current_password, password, password_confirmation }
+   │
+   ├─▶ auth:sanctum + admin
+   ├─▶ ChangePasswordRequest validates (with `current_password` rule)
+   ├─▶ AdminAuthService::changePassword()
+   │       ├─ update password
+   │       └─ $admin->tokens()->where('id','!=',currentTokenId)->delete()
+   │            ← KEEP current token, revoke others
+   └─▶ 200 { message: "Password changed" }</div>
+    </div>
+
+    <div class="card">
+        <h3>Profile view / update</h3>
+        <div class="flow">GET  /api/admin/profile        →  AdminResource
+PUT  /api/admin/profile { name, email } → validates unique email (ignore self) → returns AdminResource</div>
+    </div>
+
+    <div class="card">
+        <h3>Logout</h3>
+        <div class="flow">POST /api/admin/logout (auth:sanctum + admin)
+   └─▶ $request->user()->currentAccessToken()->delete()
+   └─▶ 200 { message: "Logged out" }</div>
+    </div>
+
+    <h2><span class="num">10</span> Validation Rules (summary)</h2>
+    <table>
+        <thead><tr><th>Request</th><th>Rules</th></tr></thead>
+        <tbody>
+            <tr><td>LoginRequest</td><td>email: required|email; password: required|string; device_name: nullable|string|max:120</td></tr>
+            <tr><td>ForgotPasswordRequest</td><td>email: required|email</td></tr>
+            <tr><td>ResetPasswordRequest</td><td>email: required|email; otp: required|digits:6; password: required|confirmed|Password::default()</td></tr>
+            <tr><td>ChangePasswordRequest</td><td>current_password: required|current_password:sanctum; password: required|confirmed|Password::default()|different:current_password</td></tr>
+            <tr><td>UpdateProfileRequest</td><td>name: required|string|max:150; email: required|email|unique:users,email,{id}</td></tr>
+        </tbody>
+    </table>
+
+    <h2><span class="num">11</span> Test Plan</h2>
+    <div class="card">
+        <p>File: <code>tests/Feature/Admin/AuthTest.php</code> (and split by concern if it gets large).</p>
+        <ul>
+            <li class="check">✓ Login succeeds with valid credentials and returns a Sanctum token.</li>
+            <li class="check">✓ Login fails with wrong password (422, no token).</li>
+            <li class="check">✓ Login fails for non-admin user (regular <code>User</code> type).</li>
+            <li class="check">✓ Login returns 403 with "Account is deactivated…" for a deactivated admin (no token issued).</li>
+            <li class="check">✓ Forgot password returns 422 "No admin account found…" for unknown / non-admin emails.</li>
+            <li class="check">✓ Forgot password returns 403 "Account is deactivated…" for a deactivated admin and does NOT write an OTP row.</li>
+            <li class="check">✓ Authenticated regular user (non-admin) hitting an admin route gets 403.</li>
+            <li class="check">✓ Login is rate-limited after 5 attempts (429).</li>
+            <li class="check">✓ Forgot password (active admin) creates a hashed OTP row + dispatches <code>AdminPasswordResetOtpNotification</code>.</li>
+            <li class="check">✓ Forgot password rejects (422) a second request while a valid OTP still exists.</li>
+            <li class="check">✓ Forgot password is allowed again once the previous OTP has expired (expired rows are purged first).</li>
+            <li class="check">✓ Forgot password is rate-limited (429).</li>
+            <li class="check">✓ Reset password succeeds with a valid OTP → password changed, ALL OTP rows for that email deleted, ALL tokens revoked.</li>
+            <li class="check">✓ Reset password fails (422) with a wrong OTP.</li>
+            <li class="check">✓ Reset password fails (422) with an expired OTP.</li>
+            <li class="check">✓ Reset password fails (422) when no OTP exists for the email.</li>
+            <li class="check">✓ Reset password is rate-limited.</li>
+            <li class="check">✓ Profile view returns the authenticated admin.</li>
+            <li class="check">✓ Profile update changes name/email; rejects duplicate email.</li>
+            <li class="check">✓ Change password works + revokes other tokens, KEEPS current token.</li>
+            <li class="check">✓ Change password rejects wrong current_password.</li>
+            <li class="check">✓ Logout deletes only the current token.</li>
+            <li class="check">✓ All authenticated routes return 401 without a token.</li>
+        </ul>
+    </div>
+
+    <h2><span class="num">12</span> Execution Order</h2>
+    <div class="card">
+        <ol>
+            <li>Add enums (<code>UserTypeEnum</code>, <code>UserStatusEnum</code>).</li>
+            <li>Edit <code>0001_01_01_000000_create_users_table.php</code> &mdash; add <code>user_type</code> + <code>status</code> columns.</li>
+            <li>New migration: create generic <code>otps</code> table (email + phone columns); create model <code>Otp</code>.</li>
+            <li>Update <code>User</code> model (HasApiTokens, fillable, casts, scopes, helpers).</li>
+            <li>Update <code>UserFactory</code> + add <code>admin()</code> state.</li>
+            <li>Create <code>EnsureAdmin</code> middleware + register the <code>admin</code> alias in <code>bootstrap/app.php</code>.</li>
+            <li>Create <code>ApiResponder</code> trait under <code>app/Http/Responses/</code>.</li>
+            <li>Create Form Requests under <code>App\Http\Requests\Admin\</code>.</li>
+            <li>Create <code>AdminResource</code>.</li>
+            <li>Create <code>AdminPasswordResetOtpNotification</code>.</li>
+            <li>Create generic <code>OtpService</code> (issue + verify + purge, channel-aware).</li>
+            <li>Create <code>AdminAuthService</code>.</li>
+            <li>Create controllers (<code>AuthController</code>, <code>PasswordController</code>, <code>ProfileController</code>).</li>
+            <li>Register rate limiters in <code>AppServiceProvider</code>.</li>
+            <li>Define routes under <code>routes/api.php</code> with <code>prefix('admin')</code> + <code>name('admin.')</code>.</li>
+            <li>Seed an initial admin via <code>DatabaseSeeder</code>.</li>
+            <li>Write feature tests covering everything above.</li>
+            <li>Run <code>vendor/bin/pint --dirty --format agent</code>.</li>
+            <li>Run <code>php artisan test --compact</code> and verify all green.</li>
+        </ol>
+    </div>
+
+    <footer>
+        Plan generated 2026-05-17 · api-based-project-start-ki-advanced
+    </footer>
+</div>
+</body>
+</html>

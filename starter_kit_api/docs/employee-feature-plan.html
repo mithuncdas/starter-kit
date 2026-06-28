@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employee Feature — Implementation Plan</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #111827;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #fbbf24;
+    --ok: #4ade80;
+    --warn: #f97316;
+    --danger: #f87171;
+    --border: #334155;
+    --code-bg: #0b1220;
+    --code-text: #d1d5db;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px 96px; }
+  header { border-bottom: 2px solid var(--border); padding-bottom: 24px; margin-bottom: 32px; }
+  header h1 { margin: 0 0 8px; font-size: 32px; color: #fff; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .badge { display: inline-block; padding: 4px 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; font-size: 12px; color: var(--muted); }
+  .badge.accent { color: var(--accent); border-color: var(--accent); }
+  .badge.ok { color: var(--ok); border-color: var(--ok); }
+  .badge.warn { color: var(--warn); border-color: var(--warn); }
+  nav.toc { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  nav.toc h3 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  h2 { color: #fff; margin-top: 48px; padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 24px; }
+  h3 { color: var(--accent-2); margin-top: 32px; font-size: 18px; }
+  h4 { color: var(--accent); margin-top: 24px; margin-bottom: 8px; font-size: 15px; }
+  p { color: var(--text); }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: var(--accent-2); }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 13px; line-height: 1.5; color: var(--code-text); font-family: "SF Mono", Menlo, Consolas, monospace; }
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  .filepath { display: inline-block; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; background: var(--panel-2); color: var(--accent); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; background: var(--panel); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .callout { border-left: 4px solid var(--accent); background: rgba(56, 189, 248, 0.08); padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+  .callout.warn { border-color: var(--warn); background: rgba(249, 115, 22, 0.08); }
+  .callout.ok { border-color: var(--ok); background: rgba(74, 222, 128, 0.08); }
+  .callout.danger { border-color: var(--danger); background: rgba(248, 113, 113, 0.08); }
+  .callout strong { color: #fff; }
+  .ascii-tree { background: var(--code-bg); padding: 16px 20px; border-radius: 8px; border: 1px solid var(--border); color: var(--code-text); font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre; overflow-x: auto; }
+  .step { display: flex; gap: 16px; align-items: flex-start; margin: 16px 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  .step-num { flex: 0 0 32px; height: 32px; background: var(--accent); color: var(--bg); font-weight: 700; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 14px; }
+  .step-body { flex: 1; }
+  .step-body h4 { margin-top: 0; }
+  .method { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+  .m-post { background: rgba(74,222,128,0.15); color: var(--ok); }
+  .m-get  { background: rgba(56,189,248,0.15); color: var(--accent); }
+  .m-put  { background: rgba(251,191,36,0.15); color: var(--accent-2); }
+  .m-del  { background: rgba(248,113,113,0.15); color: var(--danger); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; text-align: center; }
+  @media (max-width: 720px) { nav.toc ol { columns: 1; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Employee Feature — Implementation Plan</h1>
+  <div class="sub">Promote every admin user into an <code>Employee</code> profile so the system can grow into HR workflows (designation, department, joining date, leaves, attendance, payroll&hellip;) without polluting the auth/identity layer.</div>
+  <div class="meta">
+    <span class="badge accent">Laravel 13</span>
+    <span class="badge accent">PHP 8.4</span>
+    <span class="badge">Builds on Admin Auth + Role/Permission plans</span>
+    <span class="badge ok">1:1 with User</span>
+    <span class="badge warn">HR foundation</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#current">Current System Snapshot</a></li>
+    <li><a href="#goals">Goals &amp; Use Cases</a></li>
+    <li><a href="#options">Design Options &amp; Trade-offs</a></li>
+    <li><a href="#decision">Recommended Approach</a></li>
+    <li><a href="#er">Entity Relationship Map</a></li>
+    <li><a href="#schema">Schema</a></li>
+    <li><a href="#model">Models &amp; Relationships</a></li>
+    <li><a href="#address">Where Address Lives</a></li>
+    <li><a href="#service">Service Layer Changes</a></li>
+    <li><a href="#api">API Endpoints</a></li>
+    <li><a href="#permissions">Permissions</a></li>
+    <li><a href="#validation">Validation</a></li>
+    <li><a href="#seed">Backfill &amp; Seeders</a></li>
+    <li><a href="#tests">Tests</a></li>
+    <li><a href="#steps">Step-by-Step Implementation Order</a></li>
+    <li><a href="#hr">HR Roadmap (after v1)</a></li>
+    <li><a href="#risks">Risks &amp; Open Questions</a></li>
+  </ol>
+</nav>
+
+<!-- ================= CURRENT ================= -->
+<h2 id="current">1. Current System Snapshot</h2>
+
+<p>Before designing &ldquo;Employee&rdquo; we lock down what already exists. The relevant pieces today:</p>
+
+<table>
+  <thead>
+    <tr><th>Concept</th><th>Where it lives</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>User identity / auth</td><td><code>users</code> table, <code>App\Models\User</code></td><td>Sanctum tokens, status, <code>user_type</code> (<code>UserTypeEnum: User=0, Admin=1</code>).</td></tr>
+    <tr><td>Admin separation</td><td><code>UserTypeEnum::Admin</code> + <code>admins()</code> scope</td><td><code>AdminUserController</code> filters via <code>User::admins()</code>.</td></tr>
+    <tr><td>Roles &amp; permissions</td><td>Spatie tables (<code>roles</code>, <code>permissions</code>, <code>model_has_roles</code>&hellip;)</td><td><code>guard_name = sanctum</code>. Permissions are grouped (Roles / Admins / Users / Locations) by <code>group</code> column.</td></tr>
+    <tr><td>Addresses</td><td><code>user_addresses</code> &rarr; <code>users.id</code> + <code>admin_areas.id</code></td><td>1&rarr;many. <code>is_primary</code> flag. Endpoints nested under <code>/admin/admin-users/{admin_user}/addresses</code>.</td></tr>
+    <tr><td>Location hierarchy</td><td><code>countries</code> &rarr; <code>admin_levels</code> &rarr; <code>admin_areas</code> (recursive)</td><td>Country-agnostic. Drives address dropdowns.</td></tr>
+    <tr><td>OTP / password reset</td><td><code>otps</code>, <code>password_reset_tokens</code></td><td>Email-based. Already wired.</td></tr>
+  </tbody>
+</table>
+
+<p>What is <strong>not</strong> there yet, and is the gap this plan fills:</p>
+<ul>
+  <li>Anything HR-shaped: employee code, designation, department, joining date, employment type, manager, salary, etc.</li>
+  <li>A stable internal identifier for an employee that survives email changes (current PK is <code>users.id</code>, fine, but HR usually wants a human-readable code like <code>EMP-0042</code>).</li>
+  <li>A clear place to hang future modules: <code>leaves</code>, <code>attendances</code>, <code>payslips</code>, <code>documents</code>, <code>performance_reviews</code>&hellip;</li>
+</ul>
+
+<!-- ================= GOALS ================= -->
+<h2 id="goals">2. Goals &amp; Use Cases</h2>
+
+<p>Every admin (any <code>user_type = Admin</code>) is automatically an <strong>Employee</strong> of the company. Regular users are <strong>not</strong> employees. The Employee record carries HR data; the User record continues to carry identity/auth data. The split must let us:</p>
+<ul>
+  <li>Know who reports to whom (manager &harr; reports).</li>
+  <li>Group employees by department / designation for org-chart and reporting.</li>
+  <li>Track lifecycle: hired &rarr; active &rarr; on-leave &rarr; terminated.</li>
+  <li>Generate an employee code (<code>EMP-0001</code>&hellip;) that we expose in URLs and reports without leaking user IDs.</li>
+  <li>Hang future HR tables (<code>leaves</code>, <code>attendances</code>, <code>payslips</code>&hellip;) off a single <code>employee_id</code> FK.</li>
+  <li>Keep regular-user flows untouched &mdash; no HR clutter on the customer-facing side.</li>
+</ul>
+
+<!-- ================= OPTIONS ================= -->
+<h2 id="options">3. Design Options &amp; Trade-offs</h2>
+
+<table>
+  <thead>
+    <tr><th>Option</th><th>Shape</th><th>Pros</th><th>Cons</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A.</strong> Add HR columns to <code>users</code></td>
+      <td>One fat <code>users</code> table</td>
+      <td>Zero joins. No new model.</td>
+      <td>Nullable HR columns for every regular user. Identity table grows unbounded. Every HR-only migration touches the auth table. Bad blast radius.</td>
+    </tr>
+    <tr>
+      <td><strong>B.</strong> Separate <code>employees</code> table, 1:1 with <code>users</code></td>
+      <td><code>employees.user_id</code> unique FK</td>
+      <td>HR columns isolated. Future HR tables FK to <code>employees.id</code>, not <code>users.id</code>. Regular users are unaffected. Cleanest evolution path.</td>
+      <td>Two-row create on admin signup (mitigated by service + DB transaction).</td>
+    </tr>
+    <tr>
+      <td><strong>C.</strong> STI / polymorphic &ldquo;profile&rdquo; per user type</td>
+      <td><code>customer_profiles</code>, <code>employee_profiles</code> via <code>profile_type</code>/<code>profile_id</code></td>
+      <td>Most extensible long-term.</td>
+      <td>Premature for this codebase. Adds complexity (polymorphic joins, eager loading gotchas) for a benefit we don&rsquo;t yet need.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>Decision driver:</strong> HR is a separate domain with its own lifecycle and reports. Mixing it into <code>users</code> (Option A) is the move that&rsquo;s cheap today and expensive forever &mdash; every future HR migration becomes a high-blast-radius auth-table migration. Option B is the same cost today and isolates the blast radius.
+</div>
+
+<!-- ================= DECISION ================= -->
+<h2 id="decision">4. Recommended Approach</h2>
+
+<p>Go with <strong>Option B &mdash; a dedicated <code>employees</code> table, 1:1 with <code>users</code></strong>:</p>
+
+<ul>
+  <li>Every <code>User</code> with <code>user_type = Admin</code> gets exactly one <code>Employee</code> row.</li>
+  <li>Regular users (<code>UserTypeEnum::User</code>) do <strong>not</strong> get an <code>Employee</code> row.</li>
+  <li><code>users.user_type</code> remains the source of truth for &ldquo;is this account an admin?&rdquo; (auth + middleware unchanged).</li>
+  <li>The <code>Employee</code> row is created/updated <strong>inside <code>AdminUserService</code></strong> in the same DB transaction as the admin User. This guarantees an admin always has an employee row &mdash; no observer side-effects, no orphan rows.</li>
+  <li>All future HR tables (<code>leaves</code>, <code>attendances</code>, <code>payslips</code>, <code>employee_documents</code>) FK to <strong><code>employees.id</code></strong>, not <code>users.id</code>.</li>
+  <li>Address stays on <code>users</code> (see &sect;8 for the rationale).</li>
+</ul>
+
+<!-- ================= ER ================= -->
+<h2 id="er">5. Entity Relationship Map</h2>
+
+<div class="ascii-tree">                                +-------------------+
+                                |    permissions    |
+                                +-------------------+
+                                          ^
+                                          | (Spatie pivots)
+                                          |
++-----------+   has many   +----------+   |
+| countries |&lt;-------------|admin_areas|   |
++-----------+   (FK)       +----------+   |
+                                ^         |
+                                | (FK)    |
+                                |         |
+                       +----------------+ |   +-----------------+
+                       | user_addresses |&lt;----| roles &amp; pivots |
+                       +----------------+     +-----------------+
+                                ^                       ^
+                                | user_id               | model_has_roles
+                                |                       |
+                          +-----+-----------------------+----+
+                          |               users                |
+                          |  - user_type (User | Admin)        |
+                          |  - status, email, password         |
+                          +-----+------------------------------+
+                                | 1
+                                | (FK, unique) -- ONLY when user_type = Admin
+                                v 1
+                          +-------------------------------+
+                          |          employees             |
+                          |  - employee_code (EMP-0001)    |
+                          |  - designation, department     |
+                          |  - joining_date, end_date      |
+                          |  - employment_type, status     |
+                          +---------------+----------------+
+                                          | 1
+                                          | (future)
+                                          v *
+                                          leaves
+                                          attendances
+                                          payslips
+                                          employee_documents
+                                          performance_reviews</div>
+
+<p>Read this as: <code>users</code> stays the identity hub. <code>employees</code> is an HR overlay attached only to admin users. Address sits on <code>users</code> so it works for both customer and employee. Future HR modules all anchor on <code>employees.id</code>.</p>
+
+<!-- ================= SCHEMA ================= -->
+<h2 id="schema">6. Schema</h2>
+
+<h3>6.1 <code>employees</code> table</h3>
+
+<table>
+  <thead>
+    <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>bigint, PK</td><td>auto-increment.</td></tr>
+    <tr><td><code>user_id</code></td><td>foreignId &rarr; <code>users.id</code></td><td><code>unique()</code>, <code>cascadeOnDelete()</code>. Deleting the user wipes the employee row (admin lifecycle is owned by <code>AdminUserService</code> anyway).</td></tr>
+    <tr><td><code>employee_code</code></td><td>string(20)</td><td><code>unique()</code>. Human-readable (<code>EMP-0001</code>). Generated on create. Surfaced in URLs / reports.</td></tr>
+    <tr><td><code>designation</code></td><td>string(120), nullable</td><td>Free text v1 (&ldquo;Senior Engineer&rdquo;). Promote to FK <code>designations</code> table later if HR demands a catalog.</td></tr>
+    <tr><td><code>department</code></td><td>string(120), nullable</td><td>Same pattern as designation. Will become FK to a <code>departments</code> table in phase 2.</td></tr>
+    <tr><td><code>employment_type</code></td><td>tinyInt (enum)</td><td><code>EmploymentTypeEnum</code>: <code>FullTime=1</code>, <code>PartTime=2</code>, <code>Contract=3</code>, <code>Intern=4</code>.</td></tr>
+    <tr><td><code>status</code></td><td>tinyInt (enum), indexed</td><td><code>EmployeeStatusEnum</code>: <code>Active=1</code>, <code>OnLeave=2</code>, <code>Suspended=3</code>, <code>Terminated=4</code>. Distinct from <code>users.status</code> (auth-level lock).</td></tr>
+    <tr><td><code>joining_date</code></td><td>date</td><td>Required.</td></tr>
+    <tr><td><code>end_date</code></td><td>date, nullable</td><td>Set on termination/resignation. Triggers status &rarr; Terminated.</td></tr>
+    <tr><td><code>phone</code></td><td>string(30), nullable</td><td>Work phone. (Personal phone &rarr; user profile.)</td></tr>
+    <tr><td><code>date_of_birth</code></td><td>date, nullable</td><td>Sensitive &mdash; gated by <code>employees.view-sensitive</code> in &sect;11.</td></tr>
+    <tr><td><code>gender</code></td><td>tinyInt (enum), nullable</td><td><code>GenderEnum</code>: <code>Male=1</code>, <code>Female=2</code>, <code>Other=3</code>, <code>PreferNotToSay=4</code>.</td></tr>
+    <tr><td><code>emergency_contact_name</code></td><td>string(120), nullable</td><td>Free text.</td></tr>
+    <tr><td><code>emergency_contact_phone</code></td><td>string(30), nullable</td><td>Free text.</td></tr>
+    <tr><td><code>notes</code></td><td>text, nullable</td><td>HR notes &mdash; gated by <code>employees.view-sensitive</code>.</td></tr>
+    <tr><td><code>created_at</code> / <code>updated_at</code></td><td>timestampsTz</td><td>Match existing convention.</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Indexes:</strong></p>
+<ul>
+  <li><code>unique(user_id)</code> &mdash; enforces 1:1.</li>
+  <li><code>unique(employee_code)</code> &mdash; lookups by code.</li>
+  <li><code>index(status)</code> &mdash; filter active employees.</li>
+  <li><code>index(department)</code> &mdash; department roll-ups (drop once <code>department</code> becomes a FK).</li>
+</ul>
+
+<h3>6.2 Migration file</h3>
+
+<div class="filepath">database/migrations/2026_05_27_010000_create_employees_table.php</div>
+<pre><code>use App\Enums\EmployeeStatusEnum;
+use App\Enums\EmploymentTypeEnum;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('employees', function (Blueprint $table): void {
+            $table-&gt;id();
+            $table-&gt;foreignId('user_id')-&gt;unique()-&gt;constrained()-&gt;cascadeOnDelete();
+            $table-&gt;string('employee_code', 20)-&gt;unique();
+            $table-&gt;string('designation', 120)-&gt;nullable();
+            $table-&gt;string('department', 120)-&gt;nullable();
+            $table-&gt;tinyInteger('employment_type')-&gt;default(EmploymentTypeEnum::FullTime-&gt;value);
+            $table-&gt;tinyInteger('status')-&gt;default(EmployeeStatusEnum::Active-&gt;value)-&gt;index();
+            $table-&gt;date('joining_date');
+            $table-&gt;date('end_date')-&gt;nullable();
+            $table-&gt;string('phone', 30)-&gt;nullable();
+            $table-&gt;date('date_of_birth')-&gt;nullable();
+            $table-&gt;tinyInteger('gender')-&gt;nullable();
+            $table-&gt;string('emergency_contact_name', 120)-&gt;nullable();
+            $table-&gt;string('emergency_contact_phone', 30)-&gt;nullable();
+            $table-&gt;text('notes')-&gt;nullable();
+            $table-&gt;timestampsTz();
+
+            $table-&gt;index('department');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('employees');
+    }
+};</code></pre>
+
+<h3>6.3 Enums</h3>
+
+<div class="filepath">app/Enums/EmployeeStatusEnum.php</div>
+<pre><code>namespace App\Enums;
+
+enum EmployeeStatusEnum: int
+{
+    case Active     = 1;
+    case OnLeave    = 2;
+    case Suspended  = 3;
+    case Terminated = 4;
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Active     =&gt; 'Active',
+            self::OnLeave    =&gt; 'On Leave',
+            self::Suspended  =&gt; 'Suspended',
+            self::Terminated =&gt; 'Terminated',
+        };
+    }
+
+    /** @return array&lt;int, int&gt; */
+    public static function values(): array
+    {
+        return array_column(self::cases(), 'value');
+    }
+}</code></pre>
+
+<div class="filepath">app/Enums/EmploymentTypeEnum.php</div>
+<pre><code>namespace App\Enums;
+
+enum EmploymentTypeEnum: int
+{
+    case FullTime = 1;
+    case PartTime = 2;
+    case Contract = 3;
+    case Intern   = 4;
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::FullTime =&gt; 'Full-time',
+            self::PartTime =&gt; 'Part-time',
+            self::Contract =&gt; 'Contract',
+            self::Intern   =&gt; 'Intern',
+        };
+    }
+}</code></pre>
+
+<p>A <code>GenderEnum</code> follows the same pattern (<code>Male=1</code>, <code>Female=2</code>, <code>Other=3</code>, <code>PreferNotToSay=4</code>).</p>
+
+<!-- ================= MODEL ================= -->
+<h2 id="model">7. Models &amp; Relationships</h2>
+
+<h3>7.1 <code>Employee</code> model</h3>
+
+<div class="filepath">app/Models/Employee.php</div>
+<pre><code>namespace App\Models;
+
+use App\Enums\EmployeeStatusEnum;
+use App\Enums\EmploymentTypeEnum;
+use App\Enums\GenderEnum;
+use Database\Factories\EmployeeFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+#[Fillable([
+    'user_id', 'employee_code', 'designation', 'department',
+    'employment_type', 'status', 'joining_date', 'end_date',
+    'phone', 'date_of_birth', 'gender',
+    'emergency_contact_name', 'emergency_contact_phone', 'notes',
+])]
+class Employee extends Model
+{
+    /** @use HasFactory&lt;EmployeeFactory&gt; */
+    use HasFactory;
+
+    protected function casts(): array
+    {
+        return [
+            'employment_type' =&gt; EmploymentTypeEnum::class,
+            'status'          =&gt; EmployeeStatusEnum::class,
+            'gender'          =&gt; GenderEnum::class,
+            'joining_date'    =&gt; 'date',
+            'end_date'        =&gt; 'date',
+            'date_of_birth'   =&gt; 'date',
+        ];
+    }
+
+    /** @return BelongsTo&lt;User, $this&gt; */
+    public function user(): BelongsTo
+    {
+        return $this-&gt;belongsTo(User::class);
+    }
+
+    /** @param  Builder&lt;self&gt;  $query */
+    public function scopeActive(Builder $query): void
+    {
+        $query-&gt;where('status', EmployeeStatusEnum::Active);
+    }
+
+    /**
+     * @param  Builder&lt;self&gt;  $query
+     * @param  array&lt;string, mixed&gt;  $filters
+     */
+    public function scopeFilter(Builder $query, array $filters): void
+    {
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query-&gt;where(function (Builder $q) use ($search): void {
+                $q-&gt;where('employee_code', 'like', "%{$search}%")
+                  -&gt;orWhere('designation', 'like', "%{$search}%")
+                  -&gt;orWhere('department', 'like', "%{$search}%")
+                  -&gt;orWhereHas('user', fn (Builder $u) =&gt;
+                      $u-&gt;where('name', 'like', "%{$search}%")
+                        -&gt;orWhere('email', 'like', "%{$search}%"));
+            });
+        }
+
+        if (! empty($filters['department'])) {
+            $query-&gt;where('department', $filters['department']);
+        }
+
+        if (isset($filters['status']) &amp;&amp; $filters['status'] !== '') {
+            $query-&gt;where('status', (int) $filters['status']);
+        }
+    }
+}</code></pre>
+
+<h3>7.2 Add relationship to <code>User</code></h3>
+
+<div class="filepath">app/Models/User.php (additions)</div>
+<pre><code>use Illuminate\Database\Eloquent\Relations\HasOne;
+
+/** @return HasOne&lt;Employee, $this&gt; */
+public function employee(): HasOne
+{
+    return $this-&gt;hasOne(Employee::class);
+}</code></pre>
+
+<div class="callout">
+  Do <strong>not</strong> add HR fields to <code>User</code>. Access them via <code>$user-&gt;employee-&gt;designation</code>. This keeps the auth layer thin and lets us cache permissions on <code>User</code> independently of HR data turnover.
+</div>
+
+<!-- ================= ADDRESS ================= -->
+<h2 id="address">8. Where Address Lives (and other &ldquo;shared&rdquo; data)</h2>
+
+<p>The existing <code>user_addresses</code> table is keyed on <code>user_id</code> &mdash; not <code>employee_id</code>. The right move is to <strong>keep it that way</strong>. Reasoning:</p>
+
+<table>
+  <thead>
+    <tr><th>Concern</th><th>Stays on User</th><th>Moves to Employee</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Identity (name, email, password)</td><td>&#10003;</td><td></td></tr>
+    <tr><td>Auth status (<code>users.status</code>)</td><td>&#10003;</td><td></td></tr>
+    <tr><td>Roles &amp; permissions (Spatie)</td><td>&#10003; (morphs to <code>users</code>)</td><td></td></tr>
+    <tr><td>Address(es)</td><td>&#10003; &mdash; works for regular users too; primary address is &ldquo;where this person is&rdquo;, not &ldquo;where they work&rdquo;</td><td></td></tr>
+    <tr><td>HR profile fields (designation, department, manager, joining_date)</td><td></td><td>&#10003;</td></tr>
+    <tr><td>HR lifecycle (status, end_date)</td><td></td><td>&#10003;</td></tr>
+    <tr><td>HR sub-modules (leaves, attendance, payslips, documents)</td><td></td><td>&#10003; (FK <code>employee_id</code>)</td></tr>
+  </tbody>
+</table>
+
+<p>Reading an employee&rsquo;s primary address becomes one extra hop:</p>
+
+<pre><code>$employee = Employee::with('user.primaryAddress.adminArea.ancestorsAndSelf.level')
+    -&gt;findOrFail($id);
+
+$address = $employee-&gt;user-&gt;primaryAddress;
+$division = $address-&gt;adminArea-&gt;ancestorsAndSelf
+    -&gt;firstWhere('level.code', 'DIVISION');</code></pre>
+
+<div class="callout warn">
+  <strong>If, later, HR needs a distinct &ldquo;work address&rdquo;</strong> (office location), add it as a <em>new</em> column or table on <code>employees</code> (e.g. <code>employees.office_admin_area_id</code> or an <code>employee_work_locations</code> pivot). Don&rsquo;t retrofit <code>user_addresses</code> to mean two things.
+</div>
+
+<!-- ================= SERVICE ================= -->
+<h2 id="service">9. Service Layer Changes</h2>
+
+<p>Today <code>AdminUserService::create()</code> creates a <code>User</code> + syncs a role. We extend it to also create the <code>Employee</code> in the same transaction, so an admin row never exists without its employee row.</p>
+
+<h3>9.1 <code>AdminUserService::create</code> (revised)</h3>
+
+<div class="filepath">app/Services/Admin/AdminUserService.php (diff)</div>
+<pre><code>public function create(array $data): User
+{
+    return DB::transaction(function () use ($data): User {
+        $user = User::query()-&gt;create([
+            'name'              =&gt; $data['name'],
+            'email'             =&gt; $data['email'],
+            'password'          =&gt; Hash::make($data['password']),
+            'user_type'         =&gt; UserTypeEnum::Admin,
+            'status'            =&gt; UserStatusEnum::from($data['status']),
+            'email_verified_at' =&gt; now(),
+        ]);
+
+        $role = Role::query()-&gt;findOrFail($data['role_id']);
+        $user-&gt;syncRoles([$role]);
+
+        // NEW: create the matching Employee row.
+        $this-&gt;employees-&gt;createFor($user, $data);
+
+        return $user-&gt;load(['roles.permissions', 'permissions', 'employee']);
+    });
+}</code></pre>
+
+<h3>9.2 New <code>EmployeeService</code></h3>
+
+<div class="filepath">app/Services/Admin/EmployeeService.php</div>
+<pre><code>namespace App\Services\Admin;
+
+use App\Enums\EmployeeStatusEnum;
+use App\Enums\EmploymentTypeEnum;
+use App\Models\Employee;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+
+class EmployeeService
+{
+    /**
+     * Called from AdminUserService during admin creation.
+     *
+     * @param  array{
+     *   designation?: string|null,
+     *   department?: string|null,
+     *   employment_type?: int,
+     *   joining_date?: string,
+     *   phone?: string|null,
+     * }  $data
+     */
+    public function createFor(User $user, array $data): Employee
+    {
+        return $user-&gt;employee()-&gt;create([
+            'employee_code'   =&gt; $this-&gt;nextCode(),
+            'designation'     =&gt; $data['designation']        ?? null,
+            'department'      =&gt; $data['department']         ?? null,
+            'employment_type' =&gt; EmploymentTypeEnum::from($data['employment_type'] ?? EmploymentTypeEnum::FullTime-&gt;value),
+            'status'          =&gt; EmployeeStatusEnum::Active,
+            'joining_date'    =&gt; $data['joining_date']       ?? now()-&gt;toDateString(),
+            'phone'           =&gt; $data['phone']              ?? null,
+        ]);
+    }
+
+    public function update(Employee $employee, array $data): Employee
+    {
+        return DB::transaction(function () use ($employee, $data): Employee {
+            $employee-&gt;fill($data)-&gt;save();
+            return $employee-&gt;fresh(['user']);
+        });
+    }
+
+    public function terminate(Employee $employee, string $endDate): Employee
+    {
+        return DB::transaction(function () use ($employee, $endDate): Employee {
+            $employee-&gt;forceFill([
+                'status'   =&gt; EmployeeStatusEnum::Terminated,
+                'end_date' =&gt; $endDate,
+            ])-&gt;save();
+
+            // Also lock the auth side.
+            $employee-&gt;user-&gt;forceFill(['status' =&gt; \App\Enums\UserStatusEnum::Inactive])-&gt;save();
+            $employee-&gt;user-&gt;tokens()-&gt;delete();
+
+            return $employee-&gt;fresh(['user']);
+        });
+    }
+
+    /** Generates the next EMP-XXXX code. Race-safe via DB lock. */
+    protected function nextCode(): string
+    {
+        return DB::transaction(function (): string {
+            $last = Employee::query()-&gt;lockForUpdate()-&gt;orderByDesc('id')-&gt;value('employee_code');
+            $n = $last ? ((int) substr($last, 4)) + 1 : 1;
+            return sprintf('EMP-%04d', $n);
+        });
+    }
+}</code></pre>
+
+<div class="callout">
+  Inject <code>EmployeeService</code> into <code>AdminUserService</code> via constructor: <code>public function __construct(protected EmployeeService $employees) {}</code>. Both services live under <code>App\Services\Admin</code>, matching the existing convention.
+</div>
+
+<!-- ================= API ================= -->
+<h2 id="api">10. API Endpoints</h2>
+
+<p>Two surfaces. The existing <code>/admin/admin-users/*</code> endpoints keep working &mdash; we just allow HR fields in their payloads. A new <code>/admin/employees/*</code> surface is added for HR-centric flows (list employees, change manager, transfer department, terminate, etc.) where the admin-user lens isn&rsquo;t the right one.</p>
+
+<h3>10.1 Extend <code>StoreAdminUserRequest</code></h3>
+
+<div class="filepath">app/Http/Requests/Admin/AdminUser/StoreAdminUserRequest.php (additions)</div>
+<pre><code>'designation'     =&gt; ['nullable', 'string', 'max:120'],
+'department'      =&gt; ['nullable', 'string', 'max:120'],
+'employment_type' =&gt; ['nullable', 'integer', Rule::in(EmploymentTypeEnum::values())],
+'joining_date'    =&gt; ['nullable', 'date'],
+'phone'           =&gt; ['nullable', 'string', 'max:30'],</code></pre>
+
+<h3>10.2 New employee endpoints</h3>
+
+<table>
+  <thead>
+    <tr><th>Method</th><th>Path</th><th>Action</th><th>Permission</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="method m-get">GET</span></td><td><code>/admin/employees</code></td><td>List + filter (search / department / status).</td><td><code>employees.view</code></td></tr>
+    <tr><td><span class="method m-get">GET</span></td><td><code>/admin/employees/{employee}</code></td><td>Show one employee (with <code>user</code>, <code>user.primaryAddress</code>).</td><td><code>employees.view</code></td></tr>
+    <tr><td><span class="method m-put">PUT</span></td><td><code>/admin/employees/{employee}</code></td><td>Update HR fields only. Identity/role updates still go through <code>/admin/admin-users/*</code>.</td><td><code>employees.update</code></td></tr>
+    <tr><td><span class="method m-post">POST</span></td><td><code>/admin/employees/{employee}/terminate</code></td><td>Set status=Terminated, set <code>end_date</code>, deactivate user, revoke tokens.</td><td><code>employees.terminate</code></td></tr>
+  </tbody>
+</table>
+
+<div class="callout warn">
+  <strong>No <code>POST /admin/employees</code> and no <code>DELETE /admin/employees/{employee}</code>.</strong> Employees are created by promoting a User (via <code>POST /admin/admin-users</code>) and ended via <code>terminate</code>, not hard-deleted. Hard delete would orphan attendance/payslip rows. Use the existing <code>DELETE /admin/admin-users/{id}</code> if you truly need to wipe an admin &mdash; the FK <code>cascadeOnDelete</code> cleans up the employee row.
+</div>
+
+<h3>10.3 Resources</h3>
+
+<p>Two resources, mirroring the existing pattern under <code>App\Http\Resources\Admin</code>:</p>
+
+<ul>
+  <li><code>EmployeeResource</code> &mdash; full employee shape with embedded <code>user</code>, optional <code>address</code>, and a <code>can_view_sensitive</code> flag that hides <code>date_of_birth</code> / <code>notes</code> / <code>emergency_contact_*</code> for non-HR viewers.</li>
+  <li><code>EmployeeSummaryResource</code> &mdash; minimal shape (<code>id</code>, <code>employee_code</code>, <code>name</code>, <code>designation</code>) for list pickers / summary panels.</li>
+</ul>
+
+<h3>10.4 Route file additions</h3>
+
+<div class="filepath">routes/api.php (additions inside the auth:sanctum + admin group)</div>
+<pre><code>use App\Http\Controllers\Admin\EmployeeController;
+
+Route::controller(EmployeeController::class)
+    -&gt;prefix('employees')
+    -&gt;group(function (): void {
+        Route::get('/',                    'index')-&gt;middleware('permission:employees.view,sanctum');
+        Route::get('{employee}',           'show')-&gt;middleware('permission:employees.view,sanctum');
+        Route::put('{employee}',           'update')-&gt;middleware('permission:employees.update,sanctum');
+        Route::post('{employee}/terminate','terminate')-&gt;middleware('permission:employees.terminate,sanctum');
+    });</code></pre>
+
+<!-- ================= PERMISSIONS ================= -->
+<h2 id="permissions">11. Permissions</h2>
+
+<p>Add a new permission group <code>Employees</code> to <code>PermissionSeeder</code>. The existing <code>Admins</code> group keeps owning create/delete of the admin user; the new group owns the HR overlay.</p>
+
+<div class="filepath">database/seeders/PermissionSeeder.php (additions)</div>
+<pre><code>'Employees' =&gt; [
+    'employees.view',
+    'employees.update',
+    'employees.terminate',
+    'employees.view-sensitive', // DOB, salary, HR notes
+],</code></pre>
+
+<table>
+  <thead>
+    <tr><th>Permission</th><th>Who typically holds it</th><th>What it gates</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>employees.view</code></td><td>Any admin who needs the org chart</td><td>list / show / managers dropdown / reports list</td></tr>
+    <tr><td><code>employees.update</code></td><td>HR role</td><td>change designation / department / employment type</td></tr>
+    <tr><td><code>employees.terminate</code></td><td>HR lead / Administrator</td><td><code>POST /terminate</code> endpoint</td></tr>
+    <tr><td><code>employees.view-sensitive</code></td><td>HR role only</td><td>reveals DOB, emergency contacts, HR notes in the resource</td></tr>
+  </tbody>
+</table>
+
+<p>Update <code>RoleSeeder</code> so the bootstrap <code>Administrator</code> role gets all four (already gets <code>*</code> if you used <code>givePermissionTo($all)</code>); add a new optional <code>HR</code> seed role pre-loaded with the Employees + Users + Locations permissions if you want a clean starting point.</p>
+
+<!-- ================= VALIDATION ================= -->
+<h2 id="validation">12. Validation</h2>
+
+<div class="filepath">app/Http/Requests/Admin/Employee/UpdateEmployeeRequest.php</div>
+<pre><code>public function rules(): array
+{
+    return [
+        'designation'             =&gt; ['nullable', 'string', 'max:120'],
+        'department'              =&gt; ['nullable', 'string', 'max:120'],
+        'employment_type'         =&gt; ['required', 'integer', Rule::in(EmploymentTypeEnum::values())],
+        'status'                  =&gt; ['required', 'integer', Rule::in(EmployeeStatusEnum::values())],
+        'joining_date'            =&gt; ['required', 'date'],
+        'end_date'                =&gt; ['nullable', 'date', 'after_or_equal:joining_date'],
+        'phone'                   =&gt; ['nullable', 'string', 'max:30'],
+        'date_of_birth'           =&gt; ['nullable', 'date', 'before:today'],
+        'gender'                  =&gt; ['nullable', 'integer', Rule::in(GenderEnum::values())],
+        'emergency_contact_name'  =&gt; ['nullable', 'string', 'max:120'],
+        'emergency_contact_phone' =&gt; ['nullable', 'string', 'max:30'],
+        'notes'                   =&gt; ['nullable', 'string'],
+    ];
+}</code></pre>
+
+<!-- ================= SEED ================= -->
+<h2 id="seed">13. Backfill &amp; Seeders</h2>
+
+<p>Existing admin rows (the seeded <code>admin@example.com</code> in <code>DatabaseSeeder</code>) won&rsquo;t have <code>employees</code> rows after migration. Two options:</p>
+
+<ol>
+  <li><strong>Migration-time backfill:</strong> append a <code>DB::table('users')</code> + <code>DB::table('employees')-&gt;insert()</code> loop in the <code>up()</code> method of the create migration, generating codes <code>EMP-0001</code>&hellip;.</li>
+  <li><strong>Idempotent seeder:</strong> add <code>EmployeeSeeder</code> to <code>DatabaseSeeder::run()</code> that iterates all <code>User::admins()-&gt;whereDoesntHave('employee')</code> and creates an <code>Employee</code> row each. Re-runnable.</li>
+</ol>
+
+<p>Option 2 is preferred &mdash; the create migration stays schema-only, and the seeder doubles as the &ldquo;fix orphan admins&rdquo; tool if anyone ever sneaks past <code>AdminUserService</code>.</p>
+
+<div class="filepath">database/seeders/EmployeeSeeder.php</div>
+<pre><code>namespace Database\Seeders;
+
+use App\Models\User;
+use App\Services\Admin\EmployeeService;
+use Illuminate\Database\Seeder;
+
+class EmployeeSeeder extends Seeder
+{
+    public function run(EmployeeService $employees): void
+    {
+        User::query()
+            -&gt;admins()
+            -&gt;whereDoesntHave('employee')
+            -&gt;get()
+            -&gt;each(fn (User $u) =&gt; $employees-&gt;createFor($u, [
+                'designation' =&gt; 'Administrator',
+                'department'  =&gt; 'Operations',
+            ]));
+    }
+}</code></pre>
+
+<p>Add an <code>EmployeeFactory</code> mirroring <code>UserAddressFactory</code>:</p>
+
+<div class="filepath">database/factories/EmployeeFactory.php</div>
+<pre><code>public function definition(): array
+{
+    return [
+        'user_id'         =&gt; User::factory()-&gt;admin(),
+        'employee_code'   =&gt; sprintf('EMP-%04d', fake()-&gt;unique()-&gt;numberBetween(1, 9999)),
+        'designation'     =&gt; fake()-&gt;jobTitle(),
+        'department'      =&gt; fake()-&gt;randomElement(['Engineering', 'HR', 'Sales', 'Ops']),
+        'employment_type' =&gt; EmploymentTypeEnum::FullTime,
+        'status'          =&gt; EmployeeStatusEnum::Active,
+        'joining_date'    =&gt; fake()-&gt;dateTimeBetween('-3 years', 'now')-&gt;format('Y-m-d'),
+    ];
+}</code></pre>
+
+<!-- ================= TESTS ================= -->
+<h2 id="tests">14. Tests</h2>
+
+<p>Mirror the existing <code>tests/Feature/Admin</code> structure. Minimum coverage:</p>
+
+<ul>
+  <li><strong>EmployeeAutoCreationTest</strong> &mdash; creating an admin via <code>POST /admin/admin-users</code> creates the matching <code>employees</code> row with a generated code in the same transaction; if employee creation fails, the user is rolled back.</li>
+  <li><strong>EmployeeCodeUniquenessTest</strong> &mdash; concurrent admin creation under a DB lock still yields unique sequential codes.</li>
+  <li><strong>EmployeeListFilterTest</strong> &mdash; <code>GET /admin/employees</code> respects <code>search</code> / <code>department</code> / <code>status</code> filters, paginates, requires <code>employees.view</code>.</li>
+  <li><strong>EmployeeUpdateTest</strong> &mdash; updating HR fields requires <code>employees.update</code>; validation rejects invalid status/employment_type/dates.</li>
+  <li><strong>EmployeeTerminationTest</strong> &mdash; <code>POST /terminate</code> sets status, sets end_date, deactivates the underlying user, revokes Sanctum tokens.</li>
+  <li><strong>EmployeeSensitiveFieldsTest</strong> &mdash; <code>date_of_birth</code> / <code>notes</code> / <code>emergency_contact_*</code> are omitted unless the viewer holds <code>employees.view-sensitive</code>.</li>
+  <li><strong>EmployeeAddressTest</strong> &mdash; <code>GET /admin/employees/{id}</code> embeds the user&rsquo;s primary address with the full <code>admin_area</code> ancestry.</li>
+  <li><strong>RegularUserHasNoEmployeeTest</strong> &mdash; creating a non-admin user does <em>not</em> create an employee row.</li>
+</ul>
+
+<p>Run with <code>docker exec api_starter_laravel_php sh -lc 'cd /var/www/html &amp;&amp; php artisan test --compact --filter=Employee'</code>.</p>
+
+<!-- ================= STEPS ================= -->
+<h2 id="steps">15. Step-by-Step Implementation Order</h2>
+
+<div class="step"><div class="step-num">1</div><div class="step-body">
+  <h4>Enums</h4>
+  <p>Add <code>EmployeeStatusEnum</code>, <code>EmploymentTypeEnum</code>, <code>GenderEnum</code> in <code>app/Enums/</code>. Follow the <code>UserStatusEnum</code> pattern (<code>label()</code>, <code>values()</code>, <code>options()</code>).</p>
+</div></div>
+
+<div class="step"><div class="step-num">2</div><div class="step-body">
+  <h4>Migration</h4>
+  <p><code>php artisan make:migration create_employees_table</code>. Paste the schema from &sect;6.2. Run <code>php artisan migrate</code> inside the docker container.</p>
+</div></div>
+
+<div class="step"><div class="step-num">3</div><div class="step-body">
+  <h4>Model + factory</h4>
+  <p><code>php artisan make:model Employee -f</code>. Wire fillable / casts / relationships per &sect;7.1. Add the <code>employee()</code> hasOne on <code>User</code>.</p>
+</div></div>
+
+<div class="step"><div class="step-num">4</div><div class="step-body">
+  <h4>Permissions</h4>
+  <p>Add the <code>Employees</code> group to <code>PermissionSeeder</code>. Re-run <code>php artisan db:seed --class=PermissionSeeder</code>. Optionally update <code>RoleSeeder</code> to give Administrator the new permissions.</p>
+</div></div>
+
+<div class="step"><div class="step-num">5</div><div class="step-body">
+  <h4>EmployeeService</h4>
+  <p>Create <code>app/Services/Admin/EmployeeService.php</code> with <code>createFor()</code>, <code>update()</code>, <code>terminate()</code>, <code>nextCode()</code>. Inject it into <code>AdminUserService</code>.</p>
+</div></div>
+
+<div class="step"><div class="step-num">6</div><div class="step-body">
+  <h4>AdminUserService hook</h4>
+  <p>Call <code>$this-&gt;employees-&gt;createFor($user, $data)</code> inside the existing transaction. Extend <code>StoreAdminUserRequest</code> with the optional HR fields from &sect;10.1.</p>
+</div></div>
+
+<div class="step"><div class="step-num">7</div><div class="step-body">
+  <h4>EmployeeSeeder</h4>
+  <p>Add <code>EmployeeSeeder</code> &amp; call it from <code>DatabaseSeeder</code> (idempotent backfill for existing admin rows).</p>
+</div></div>
+
+<div class="step"><div class="step-num">8</div><div class="step-body">
+  <h4>Controller + Requests + Resource</h4>
+  <p><code>EmployeeController</code> (index/show/update/terminate). <code>UpdateEmployeeRequest</code>. <code>EmployeeResource</code> &amp; <code>EmployeeSummaryResource</code>. Mount routes in <code>routes/api.php</code>.</p>
+</div></div>
+
+<div class="step"><div class="step-num">9</div><div class="step-body">
+  <h4>Tests</h4>
+  <p>Write the feature tests listed in &sect;14. Run only the new file via <code>--filter=Employee</code>.</p>
+</div></div>
+
+<div class="step"><div class="step-num">10</div><div class="step-body">
+  <h4>Pint &amp; Postman</h4>
+  <p>Run <code>vendor/bin/pint --dirty --format agent</code>. Add the new endpoints to <code>postman_collection/</code> so the frontend can pick them up.</p>
+</div></div>
+
+<!-- ================= HR ================= -->
+<h2 id="hr">16. HR Roadmap (after v1)</h2>
+
+<p>Once <code>employees.id</code> exists, every future HR module attaches to it the same way addresses attach to users. Sketch:</p>
+
+<table>
+  <thead>
+    <tr><th>Module</th><th>Table</th><th>Anchor FK</th><th>v1 surface</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Leaves</td><td><code>leave_types</code>, <code>leave_requests</code>, <code>leave_balances</code></td><td><code>employee_id</code></td><td>apply / approve / balance.</td></tr>
+    <tr><td>Attendance</td><td><code>attendance_punches</code>, <code>attendance_summaries</code></td><td><code>employee_id</code></td><td>punch in/out, daily summary.</td></tr>
+    <tr><td>Payroll</td><td><code>salary_components</code>, <code>payslips</code>, <code>payslip_lines</code></td><td><code>employee_id</code></td><td>monthly payslip generation.</td></tr>
+    <tr><td>Documents</td><td><code>employee_documents</code></td><td><code>employee_id</code></td><td>contracts, IDs, certificates (private storage).</td></tr>
+    <tr><td>Departments</td><td><code>departments</code></td><td><code>employees.department_id</code> (replaces the string column)</td><td>full FK + dropdown.</td></tr>
+    <tr><td>Designations</td><td><code>designations</code></td><td><code>employees.designation_id</code></td><td>same pattern.</td></tr>
+    <tr><td>Reviews</td><td><code>performance_reviews</code>, <code>review_cycles</code></td><td><code>employee_id</code> + <code>reviewer_id</code> (also <code>employee_id</code>)</td><td>cycle-based reviews.</td></tr>
+  </tbody>
+</table>
+
+<p>Promoting <code>department</code> / <code>designation</code> from free-text to FK is a planned phase-2 migration: create the catalog table, backfill from distinct values, drop the string column, add the FK. Don&rsquo;t do it in v1 unless HR already has the catalog.</p>
+
+<!-- ================= RISKS ================= -->
+<h2 id="risks">17. Risks &amp; Open Questions</h2>
+
+<ul>
+  <li><strong>Two statuses (<code>users.status</code> vs <code>employees.status</code>).</strong> They mean different things (auth lock vs HR lifecycle). Document this and keep the <code>terminate</code> action as the canonical way to put them in sync. Don&rsquo;t add a synced trigger &mdash; explicit beats clever.</li>
+  <li><strong>Employee code collisions under high concurrency.</strong> The <code>lockForUpdate()</code> approach in <code>nextCode()</code> serializes admin creation. If that ever becomes a bottleneck, switch to a DB sequence (Postgres) or a numbers table with row-level locks.</li>
+  <li><strong>Sensitive data exposure.</strong> Until <code>employees.view-sensitive</code> ships, do <em>not</em> return DOB / emergency contacts / notes in <code>EmployeeResource</code>. Default to hidden; opt-in via the permission.</li>
+  <li><strong>What about non-admin employees?</strong> Out of scope. If the company ever has employees who don&rsquo;t log in (e.g. blue-collar staff), revisit by relaxing the <code>users.user_type = Admin</code> constraint and allowing &ldquo;employee without account&rdquo; via a nullable <code>employees.user_id</code>. Defer until there&rsquo;s a real ask.</li>
+  <li><strong>Soft deletes?</strong> Don&rsquo;t add them now. <code>terminate</code> + <code>end_date</code> capture the &ldquo;left the company&rdquo; state without the soft-delete complexity.</li>
+</ul>
+
+<footer>
+  Plan version 1.0 &mdash; aligned with <code>admin-auth-plan.html</code>, <code>role-permission-admin-management-plan.html</code>, <code>location-management-plan.html</code>, and <code>user-location-relationship-plan.html</code>.
+</footer>
+
+</div>
+</body>
+</html>
