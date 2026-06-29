@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 
-export function AppShell({ theme, toggleTheme, children }) {
+export function AppLayout({ theme, toggleTheme, children }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auth Approach Comparison — react-starter-kit vs. starter_kit_frontend</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a212b; --panel2:#141a22; --ink:#e6edf3; --muted:#9fb0c0;
+    --accent:#4ea1ff; --accent2:#7ee787; --warn:#ffb454; --danger:#ff6b6b;
+    --border:#2a3645; --code-bg:#0b0f14; --kw:#ff7b9c; --str:#7ee787; --com:#6b7d8f; --fn:#ffd479;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.65; font-size:16px;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px 120px}
+  header.hero{
+    background:linear-gradient(135deg,#11202e 0%,#0f1419 60%); border-bottom:1px solid var(--border);
+    padding:56px 24px 40px; margin-bottom:8px;
+  }
+  header.hero .inner{max-width:1080px;margin:0 auto}
+  header.hero h1{font-size:34px; margin:0 0 8px; letter-spacing:-.5px}
+  header.hero p{color:var(--muted); margin:0; font-size:17px; max-width:820px}
+  .tag{display:inline-block;background:#16324a;color:var(--accent);border-radius:999px;
+    padding:3px 12px;font-size:12.5px;font-weight:600;letter-spacing:.3px;margin-bottom:18px;border:1px solid #234b6b}
+  nav.toc{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 24px; margin:28px 0 40px;
+  }
+  nav.toc h2{margin:0 0 12px; font-size:13px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted)}
+  nav.toc ol{margin:0; padding-left:20px; columns:2; column-gap:40px}
+  nav.toc a{color:var(--accent); text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+  h2.section{font-size:25px; margin:52px 0 14px; padding-top:14px; border-top:1px solid var(--border); letter-spacing:-.3px}
+  h3{font-size:18.5px; margin:30px 0 10px; color:#cfe3f7}
+  h4{font-size:15.5px;margin:22px 0 8px;color:var(--accent2)}
+  p{margin:12px 0}
+  code.inline{background:#1d2733;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:13.5px;
+    font-family:"SF Mono", "JetBrains Mono",Consolas,monospace;color:#ffd9a8}
+  a{color:var(--accent)}
+  .muted{color:var(--muted)}
+  ul li,ol li{margin:6px 0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  @media(max-width:760px){.grid{grid-template-columns:1fr} nav.toc ol{columns:1}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+  .card h4{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px;overflow:hidden;border-radius:10px}
+  th,td{border:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top}
+  th{background:#16202b;color:#cfe3f7;font-weight:600}
+  tr:nth-child(even) td{background:var(--panel2)}
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-radius:10px; padding:16px 18px; overflow:auto;
+    font-family:"SF Mono","JetBrains Mono",Consolas,monospace; font-size:13.5px; line-height:1.6; margin:14px 0;
+    white-space:pre;
+  }
+  code{font-family:"SF Mono","JetBrains Mono",Consolas,monospace}
+  .filelabel{display:inline-block;background:#0b1622;border:1px solid var(--border);border-bottom:none;
+    border-radius:8px 8px 0 0;padding:6px 14px;font-size:12.5px;color:var(--accent2);font-family:monospace;margin-top:18px}
+  .filelabel + pre{margin-top:0;border-top-left-radius:0}
+  .note{border-left:4px solid var(--accent);background:#102233;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .warn{border-left:4px solid var(--warn);background:#2a2113;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .danger{border-left:4px solid var(--danger);background:#2a1414;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .ok{border-left:4px solid var(--accent2);background:#13251a;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .pill{display:inline-block;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600;font-family:monospace}
+  .pill.win{background:#13251a;color:#7ee787;border:1px solid #1f5631}
+  .pill.lose{background:#2a1414;color:#ff8f8f;border:1px solid #5a2a2a}
+  .pill.tie{background:#23252b;color:#cfd6df;border:1px solid #3a4351}
+  .verdict{background:linear-gradient(135deg,#13251a 0%,#11202e 100%);border:1px solid #1f5631;border-radius:12px;padding:20px 24px;margin:24px 0}
+  .verdict h3{margin-top:0;color:#7ee787}
+  hr{border:none;border-top:1px solid var(--border);margin:30px 0}
+  .scorebar{font-family:monospace;font-size:13px}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="inner">
+    <span class="tag">Architecture review · June 2026</span>
+    <h1>Auth Approach Comparison</h1>
+    <p>An evaluation of two React + Laravel-Sanctum admin starter kits — the existing <code class="inline">DebugPeople/react-starter-kit</code> vs. the planned <code class="inline">starter_kit_frontend</code> design — against the project's hard requirements and the current <code class="inline">starter_kit_api</code> backend. Verdict and a "best of both" recommendation included.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#summary">Executive summary</a></li>
+    <li><a href="#subjects">The two subjects</a></li>
+    <li><a href="#matrix">Side-by-side matrix</a></li>
+    <li><a href="#decisive">The decisive issue — localStorage</a></li>
+    <li><a href="#backend">Backend compatibility</a></li>
+    <li><a href="#sot">Single source of truth</a></li>
+    <li><a href="#wins">Where each approach wins</a></li>
+    <li><a href="#borrow">What to borrow from the other kit</a></li>
+    <li><a href="#verdict">Verdict &amp; recommendation</a></li>
+  </ol>
+</nav>
+
+<!-- =============================================== -->
+<h2 class="section" id="summary">1. Executive summary</h2>
+<p>Both kits target the same backend family and share a modern stack (React 19, TanStack Query, Zustand, Sonner, axios). They diverge on the one thing that matters most for an admin panel: <b>how the auth token is stored and refreshed.</b></p>
+<ul>
+  <li>The <b>DebugPeople kit</b> stores the access token in <code class="inline">localStorage</code> and has <b>no refresh-token flow</b> — a single long-lived token.</li>
+  <li>The <b>starter_kit_frontend design</b> keeps the access token <b>in memory only</b> (Zustand) and relies on an <b>httpOnly refresh cookie + silent-refresh interceptor</b>.</li>
+</ul>
+<div class="verdict">
+  <h3>Bottom line</h3>
+  <p>For this project's stated requirement (<i>"do not store the access token in localStorage"</i>) and the <b>current</b> <code class="inline">starter_kit_api</code> (short-lived access token + httpOnly refresh cookie), the <b>starter_kit_frontend design is the correct approach</b>. The DebugPeople kit is disqualified on two counts: it violates the no-localStorage rule, and it was built against an <b>older API</b> that returned a single <code class="inline">token</code> — it would not even authenticate against the current backend. <b>Adopt</b> the starter_kit_frontend auth architecture, and <b>borrow</b> the DebugPeople kit's class-based service layer and Zod validation.</p>
+</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="subjects">2. The two subjects</h2>
+<div class="grid">
+  <div class="card">
+    <h4>A · DebugPeople/react-starter-kit</h4>
+    <p class="muted" style="font-size:13.5px">TypeScript · react-router-dom v7 · class-based services · Zod + custom <code class="inline">useFormValidation</code> · next-themes</p>
+    <ul style="font-size:14.5px">
+      <li>Token + profile in <code class="inline">localStorage</code></li>
+      <li>No refresh token; single bearer</li>
+      <li>Zustand auth store hydrated from localStorage</li>
+      <li>TanStack Query for server data</li>
+      <li><code class="inline">BaseService</code> OOP transport layer</li>
+      <li>Guard re-validates token via <code class="inline">GET /profile</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>B · starter_kit_frontend (planned)</h4>
+    <p class="muted" style="font-size:13.5px">JSX · react-router v8 · functional feature APIs · react-hook-form · Zustand persist (theme)</p>
+    <ul style="font-size:14.5px">
+      <li>Access token in memory (Zustand), never persisted</li>
+      <li>Refresh token in httpOnly cookie</li>
+      <li>Silent-refresh axios interceptor (single-flight)</li>
+      <li>TanStack Query for server data</li>
+      <li>Functional <code class="inline">features/&lt;name&gt;/*.api.js</code></li>
+      <li>Boot <code class="inline">bootstrap()</code> re-mints token from cookie</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="matrix">3. Side-by-side matrix</h2>
+<table>
+  <thead><tr><th>Dimension</th><th>DebugPeople kit</th><th>starter_kit_frontend</th><th>Better</th></tr></thead>
+  <tbody>
+    <tr><td><b>Access token storage</b></td><td><code class="inline">localStorage</code></td><td>In-memory Zustand (not persisted)</td><td><span class="pill win">B</span></td></tr>
+    <tr><td><b>Refresh token</b></td><td>None — single long-lived token</td><td>httpOnly cookie + rotation</td><td><span class="pill win">B</span></td></tr>
+    <tr><td><b>Token expiry UX</b></td><td>Hard logout (or never expires)</td><td>Invisible silent refresh on 401</td><td><span class="pill win">B</span></td></tr>
+    <tr><td><b>Reload / session restore</b></td><td>Read token from localStorage + revalidate <code class="inline">/profile</code></td><td>Silent <code class="inline">/refresh</code> from cookie (bootstrap)</td><td><span class="pill win">B</span></td></tr>
+    <tr><td><b>XSS token exposure</b></td><td>Readable by any script</td><td>Token in memory; refresh httpOnly</td><td><span class="pill win">B</span></td></tr>
+    <tr><td><b>Source of truth for auth</b></td><td>localStorage (Zustand mirrors it)</td><td>Zustand store (single)</td><td><span class="pill win">B</span></td></tr>
+    <tr><td><b>Server-state caching</b></td><td>TanStack Query</td><td>TanStack Query</td><td><span class="pill tie">tie</span></td></tr>
+    <tr><td><b>Service / transport layer</b></td><td>Class <code class="inline">BaseService</code> + typed <code class="inline">withMessage</code></td><td>Functional <code class="inline">.api.js</code> per feature</td><td><span class="pill lose">A</span></td></tr>
+    <tr><td><b>Form validation</b></td><td>Zod schemas (+ custom hook)</td><td>react-hook-form (rules)</td><td><span class="pill tie">mix</span></td></tr>
+    <tr><td><b>Type safety</b></td><td>TypeScript throughout</td><td>JSX (project preference)</td><td><span class="pill lose">A</span></td></tr>
+    <tr><td><b>Theme</b></td><td>next-themes + Context</td><td>Zustand <code class="inline">persist</code></td><td><span class="pill tie">tie</span></td></tr>
+    <tr><td><b>Matches current backend</b></td><td>❌ expects old <code class="inline">{ token }</code></td><td>✅ <code class="inline">{ access_token }</code> + cookie</td><td><span class="pill win">B</span></td></tr>
+  </tbody>
+</table>
+
+<!-- =============================================== -->
+<h2 class="section" id="decisive">4. The decisive issue — localStorage</h2>
+<p>The DebugPeople kit persists the bearer token (and the full profile) to <code class="inline">localStorage</code>, and the axios interceptor reads it from there:</p>
+<div class="filelabel">DebugPeople · src/store/useAuthStore.ts</div>
+<pre>setUser: (user, token) =&gt; {
+  localStorage.setItem('token', token);          <span class="muted">// ← the access token, in web storage</span>
+  localStorage.setItem('profile', JSON.stringify(user));
+  set({ user, isAuthenticated: true });
+},</pre>
+<div class="filelabel">DebugPeople · src/services/base.ts</div>
+<pre>this.http.interceptors.request.use((config) =&gt; {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});</pre>
+<div class="danger"><b>This is the project's explicit no-go.</b> The requirement was "do not store the access token in localStorage." Beyond the rule, it is a real security weakness:
+<ul>
+  <li><b>XSS exposure:</b> anything in <code class="inline">localStorage</code> is readable by any injected script — token theft is trivial. An in-memory token is not script-reachable from storage, and the refresh token is <code class="inline">httpOnly</code> (unreadable by JS at all).</li>
+  <li><b>No rotation:</b> a single long-lived token can't be short-lived without logging the user out, so it tends to be long-lived — widening the theft window.</li>
+</ul>
+</div>
+<p>The starter_kit_frontend design holds the token only in the Zustand store's memory and reads it via <code class="inline">getState()</code> in the interceptor — nothing reaches storage.</p>
+
+<!-- =============================================== -->
+<h2 class="section" id="backend">5. Backend compatibility</h2>
+<p>This is the point that settles it on engineering grounds, independent of preference. The current <code class="inline">starter_kit_api</code> <code class="inline">AuthController</code> returns:</p>
+<pre>data: { "access_token": "...", "admin": { ... } }   <span class="muted">// refresh token delivered as an httpOnly cookie</span></pre>
+<p>The DebugPeople kit expects the <i>older</i> shape and reads a field that no longer exists:</p>
+<div class="filelabel">DebugPeople · src/store/useAuthStore.ts (login)</div>
+<pre>onSuccess: ({ data: { token, admin } }) =&gt; {   <span class="muted">// ← `token` is undefined on the current API</span>
+  setUser(admin, token);
+}</pre>
+<div class="warn"><b>The DebugPeople kit predates the refresh-token feature.</b> The backend's most recent commit is literally <i>"refresh token is implemented"</i>, switching the payload to <code class="inline">access_token</code> + a short (~10&nbsp;min) access TTL and a ~60&nbsp;min httpOnly refresh cookie. As written, the DebugPeople kit would receive <code class="inline">undefined</code> for the token and fail to authenticate against the current backend. The starter_kit_frontend design is written against the backend as it exists today.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="sot">6. Single source of truth</h2>
+<p>A subtler architectural difference: in the DebugPeople kit, the Zustand store is not really the source of truth — <code class="inline">localStorage</code> is, and the store is initialized <i>from</i> it on every page load:</p>
+<div class="filelabel">DebugPeople · src/store/useAuthStore.ts</div>
+<pre>export const useAuthStore = create&lt;AuthState&gt;((set) =&gt; ({
+  user: loadUser(),                                  <span class="muted">// parsed from localStorage</span>
+  isAuthenticated: !!localStorage.getItem('token'),  <span class="muted">// derived from localStorage</span>
+  ...
+}));</pre>
+<p>State now lives in two places that must be kept in sync by hand on every write. The starter_kit_frontend design avoids this entirely: the store holds the session in memory as the one authority, and the httpOnly cookie (owned by the server) restores it on reload via <code class="inline">bootstrap()</code> — no duplicated client state.</p>
+
+<!-- =============================================== -->
+<h2 class="section" id="wins">7. Where each approach wins</h2>
+<div class="grid">
+  <div class="card"><h4>starter_kit_frontend wins on</h4>
+    <ul style="font-size:14.5px">
+      <li>Token security (in-memory + httpOnly refresh)</li>
+      <li>Seamless UX on short token TTL (silent refresh)</li>
+      <li>Single source of truth for the session</li>
+      <li>Correctness against the current backend</li>
+      <li>Compliance with the project requirement</li>
+    </ul>
+  </div>
+  <div class="card"><h4>DebugPeople kit wins on</h4>
+    <ul style="font-size:14.5px">
+      <li>Class-based <code class="inline">BaseService</code> — DRY, typed transport</li>
+      <li>Zod schemas for validation</li>
+      <li>End-to-end TypeScript</li>
+      <li>Clean per-resource hook co-location</li>
+      <li>Tidy envelope helpers (<code class="inline">withMessage</code> variants)</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="borrow">8. What to borrow from the DebugPeople kit</h2>
+
+<h3>8.1 Class-based <code class="inline">BaseService</code> transport</h3>
+<p>Their typed wrapper around the <code class="inline">{ data, message, success }</code> envelope is cleaner than repeating <code class="inline">.then(r =&gt; r.data.data)</code> in every feature file. Adopt it as the transport, with one shared axios instance (their version <code class="inline">new</code>s an instance per service — consolidate to one):</p>
+<div class="filelabel">borrowed pattern · lib/base-service.js (single shared `api`)</div>
+<pre>import { api } from "@/lib/api";
+
+export class BaseService {
+  get(url, config)            { return api.get(url, config).then((r) =&gt; r.data.data); }
+  post(url, body, config)     { return api.post(url, body, config).then((r) =&gt; r.data.data); }
+  postWithMessage(url, body)  { return api.post(url, body).then((r) =&gt; ({ data: r.data.data, message: r.data.message })); }
+  put(url, body)              { return api.put(url, body).then((r) =&gt; r.data.data); }
+  del(url)                    { return api.delete(url).then((r) =&gt; r.data.data); }
+}</pre>
+<p class="muted" style="font-size:13.5px">Keep the silent-refresh interceptor on the shared <code class="inline">api</code> instance — so the borrowed transport still benefits from in-memory tokens + refresh.</p>
+
+<h3>8.2 Zod validation via the react-hook-form resolver</h3>
+<p>Take Zod (stronger, reusable schemas) but pair it with react-hook-form instead of the custom <code class="inline">useFormValidation</code> hook — RHF is more capable and is already the documented form layer:</p>
+<pre>npm install zod @hookform/resolvers</pre>
+<pre>import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+const { register, handleSubmit, formState } = useForm({
+  resolver: zodResolver(loginSchema),
+});</pre>
+
+<h3>8.3 Per-resource hook co-location</h3>
+<p>Both designs already do this — their <code class="inline">store/useAdminUserStore.ts</code> (a bundle of <code class="inline">useQuery</code>/<code class="inline">useMutation</code> + form hooks) is the same idea as the planned <code class="inline">features/admin-users/*.hooks.js</code>. No change needed; just confirms the structure.</p>
+
+<!-- =============================================== -->
+<h2 class="section" id="verdict">9. Verdict &amp; recommendation</h2>
+<div class="verdict">
+  <h3>Recommendation</h3>
+  <p><b>Build on the starter_kit_frontend auth architecture</b> — in-memory access token, httpOnly refresh cookie, silent-refresh interceptor, Zustand as the single session source, TanStack Query for server data. It is the only approach that satisfies the no-localStorage requirement <i>and</i> works with the current backend.</p>
+  <p style="margin-bottom:0"><b>Graft on two patterns from the DebugPeople kit:</b> (1) a class-based <code class="inline">BaseService</code> on top of the shared, interceptor-equipped axios instance, and (2) <b>Zod validation through the react-hook-form resolver</b>. The result keeps the secure token model while gaining a DRY transport layer and schema-based validation.</p>
+</div>
+
+<table>
+  <thead><tr><th>Decision</th><th>Choice</th></tr></thead>
+  <tbody>
+    <tr><td>Token storage</td><td>✅ starter_kit_frontend — in-memory</td></tr>
+    <tr><td>Refresh strategy</td><td>✅ starter_kit_frontend — httpOnly cookie + silent refresh</td></tr>
+    <tr><td>Auth/UI state</td><td>✅ starter_kit_frontend — Zustand single source</td></tr>
+    <tr><td>Server state</td><td>✅ both — TanStack Query</td></tr>
+    <tr><td>Transport layer</td><td>➕ borrow — class <code class="inline">BaseService</code> on one shared <code class="inline">api</code></td></tr>
+    <tr><td>Validation</td><td>➕ borrow — Zod via react-hook-form resolver</td></tr>
+    <tr><td>Language</td><td>JSX (project preference; TS optional later)</td></tr>
+  </tbody>
+</table>
+
+<hr>
+<p class="muted" style="font-size:13px">Sources reviewed — <code class="inline">DebugPeople/api-based-starterkit/react-starter-kit</code>: <code class="inline">store/useAuthStore.ts</code>, <code class="inline">services/base.ts</code>, <code class="inline">services/auth.ts</code>, <code class="inline">routes/middleware.tsx</code>, <code class="inline">context/ThemeContext.tsx</code>, <code class="inline">lib/index.ts</code>. Compared against <code class="inline">docs/frontend-auth-context-implementation.html</code> and <code class="inline">starter_kit_api</code> <code class="inline">AuthController</code>.</p>
+
+</div>
+</body>
+</html>

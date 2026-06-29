@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frontend Auth &amp; Theme — Zustand + In-Memory Token Implementation</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a212b; --panel2:#141a22; --ink:#e6edf3; --muted:#9fb0c0;
+    --accent:#4ea1ff; --accent2:#7ee787; --warn:#ffb454; --danger:#ff6b6b;
+    --border:#2a3645; --code-bg:#0b0f14; --kw:#ff7b9c; --str:#7ee787; --com:#6b7d8f; --fn:#ffd479;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.65; font-size:16px;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px 120px}
+  header.hero{
+    background:linear-gradient(135deg,#11202e 0%,#0f1419 60%); border-bottom:1px solid var(--border);
+    padding:56px 24px 40px; margin-bottom:8px;
+  }
+  header.hero .inner{max-width:1080px;margin:0 auto}
+  header.hero h1{font-size:34px; margin:0 0 8px; letter-spacing:-.5px}
+  header.hero p{color:var(--muted); margin:0; font-size:17px; max-width:780px}
+  .tag{display:inline-block;background:#16324a;color:var(--accent);border-radius:999px;
+    padding:3px 12px;font-size:12.5px;font-weight:600;letter-spacing:.3px;margin-bottom:18px;border:1px solid #234b6b}
+  nav.toc{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 24px; margin:28px 0 40px;
+  }
+  nav.toc h2{margin:0 0 12px; font-size:13px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted)}
+  nav.toc ol{margin:0; padding-left:20px; columns:2; column-gap:40px}
+  nav.toc a{color:var(--accent); text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+  h2.section{font-size:25px; margin:52px 0 14px; padding-top:14px; border-top:1px solid var(--border); letter-spacing:-.3px}
+  h3{font-size:18.5px; margin:30px 0 10px; color:#cfe3f7}
+  h4{font-size:15.5px;margin:22px 0 8px;color:var(--accent2)}
+  p{margin:12px 0}
+  code.inline{background:#1d2733;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:13.5px;
+    font-family:"SF Mono", "JetBrains Mono",Consolas,monospace;color:#ffd9a8}
+  a{color:var(--accent)}
+  .muted{color:var(--muted)}
+  ul li,ol li{margin:6px 0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  @media(max-width:760px){.grid{grid-template-columns:1fr} nav.toc ol{columns:1}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+  .card h4{margin-top:0}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px;overflow:hidden;border-radius:10px}
+  th,td{border:1px solid var(--border);padding:10px 14px;text-align:left;vertical-align:top}
+  th{background:#16202b;color:#cfe3f7;font-weight:600}
+  tr:nth-child(even) td{background:var(--panel2)}
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-radius:10px; padding:16px 18px; overflow:auto;
+    font-family:"SF Mono","JetBrains Mono",Consolas,monospace; font-size:13.5px; line-height:1.6; margin:14px 0;
+    white-space:pre;
+  }
+  code{font-family:"SF Mono","JetBrains Mono",Consolas,monospace}
+  .filelabel{display:inline-block;background:#0b1622;border:1px solid var(--border);border-bottom:none;
+    border-radius:8px 8px 0 0;padding:6px 14px;font-size:12.5px;color:var(--accent2);font-family:monospace;margin-top:18px}
+  .filelabel + pre{margin-top:0;border-top-left-radius:0}
+  .note{border-left:4px solid var(--accent);background:#102233;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .warn{border-left:4px solid var(--warn);background:#2a2113;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .danger{border-left:4px solid var(--danger);background:#2a1414;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .ok{border-left:4px solid var(--accent2);background:#13251a;padding:12px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .seq{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:8px 4px;margin:18px 0;font-family:monospace;font-size:13px;overflow:auto}
+  .seq pre{background:none;border:none;margin:0;padding:14px 18px;color:#bcd}
+  .pill{display:inline-block;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600;font-family:monospace}
+  .pill.get{background:#13351f;color:#7ee787;border:1px solid #1f5631}
+  .pill.post{background:#13283f;color:#79c0ff;border:1px solid #234b6b}
+  .pill.put{background:#2a2113;color:#ffb454;border:1px solid #4a3a1c}
+  .pill.mem{background:#2a2030;color:#e9a8ff;border:1px solid #4a2f57}
+  .pill.cookie{background:#2a2113;color:#ffb454;border:1px solid #4a3a1c}
+  .pill.store{background:#16324a;color:#4ea1ff;border:1px solid #234b6b}
+  .step{counter-increment:step;position:relative;padding-left:44px;margin:22px 0}
+  .step::before{content:counter(step);position:absolute;left:0;top:-2px;width:30px;height:30px;border-radius:50%;
+    background:#16324a;border:1px solid #234b6b;color:var(--accent);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px}
+  ol.steps{counter-reset:step;list-style:none;padding:0}
+  hr{border:none;border-top:1px solid var(--border);margin:30px 0}
+  .kbd{font-family:monospace;background:#1d2733;border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-size:13px;color:#ffd9a8}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="inner">
+    <span class="tag">starter_kit_frontend · React 19 + Vite · Zustand</span>
+    <h1>Frontend Authentication &amp; Theme</h1>
+    <p>Implementation guide: access token in a Zustand store (never localStorage), refresh token in an httpOnly cookie, auth &amp; theme served by Zustand stores, a silent-refresh axios interceptor, TanStack Query for server data, and toast notifications via Sonner.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#goals">Goals &amp; constraints</a></li>
+    <li><a href="#api">API analysis (starter_kit_api)</a></li>
+    <li><a href="#envelope">Response envelope &amp; payloads</a></li>
+    <li><a href="#strategy">Token storage strategy</a></li>
+    <li><a href="#current">Current scaffolding &amp; what to fix</a></li>
+    <li><a href="#files">Target file layout</a></li>
+    <li><a href="#deps">Dependencies &amp; env</a></li>
+    <li><a href="#axios">Axios instance + interceptors</a></li>
+    <li><a href="#query">Data layer — TanStack Query</a></li>
+    <li><a href="#authstore">Auth store (Zustand)</a></li>
+    <li><a href="#hooks">Store hooks (useAuth / useTheme)</a></li>
+    <li><a href="#themestore">Theme store (Zustand)</a></li>
+    <li><a href="#toaster">Toaster (Sonner)</a></li>
+    <li><a href="#wiring">App composition &amp; routes</a></li>
+    <li><a href="#screens">Wiring the screens</a></li>
+    <li><a href="#flows">End-to-end flows</a></li>
+    <li><a href="#checklist">Build checklist</a></li>
+  </ol>
+</nav>
+
+<!-- =============================================== -->
+<h2 class="section" id="goals">1. Goals &amp; constraints</h2>
+<p>This document is the implementation plan for authentication in <code class="inline">starter_kit_frontend</code>. The rules driving every design choice:</p>
+<ul>
+  <li><b>Access token lives in memory only.</b> Never <code class="inline">localStorage</code> / <code class="inline">sessionStorage</code>. It is held in the <b>Zustand auth store</b>; the axios interceptor reads it via <code class="inline">useAuthStore.getState().token</code> — synchronously, outside React, with no separate module variable to keep in sync.</li>
+  <li><b>Refresh token is never touched by JS.</b> The API already delivers it as an <code class="inline">httpOnly</code> cookie scoped to <code class="inline">/api/admin</code> for browser clients — the SPA cannot and should not read it.</li>
+  <li><b>State is served by Zustand stores.</b> <code class="inline">useAuthStore</code> holds user, token, status and the auth actions; <code class="inline">useThemeStore</code> holds theme + toggle. Stores are module singletons — <b>no Context, no providers</b>.</li>
+  <li><b>Axios interceptors</b> attach the bearer token on the way out and perform a single silent refresh on a <code class="inline">401</code> on the way back.</li>
+  <li><b>TanStack Query</b> owns all cached server data (lists, details, writes). <b>Zustand</b> owns client/session state (auth, theme). <b>React Hook Form</b> owns form state.</li>
+  <li><b>Toaster</b> for user feedback (login errors, success, session expiry) using <code class="inline">sonner</code>.</li>
+</ul>
+
+<div class="note"><b>Why in-memory is safe here:</b> because we keep the access token out of storage, an XSS-injected script can't read it from <code class="inline">localStorage</code>, and the refresh token is <code class="inline">httpOnly</code> so script can't read that either. The trade-off — the access token is lost on full page reload — is solved by a <b>silent refresh on app boot</b> (the cookie re-mints a fresh access token). See <a href="#strategy">§4</a>.</div>
+
+<div class="note"><b>Why Zustand instead of Context.</b> The token must be read <i>synchronously and outside React</i> by the axios interceptor. With Context you'd need a second module-level variable mirrored to React state. A Zustand store is one object that is both reactive inside components (<code class="inline">useAuthStore(selector)</code>) and readable imperatively outside React (<code class="inline">useAuthStore.getState()</code>) — so it is the single source of truth for both worlds and removes the dual-write. It also needs no provider wrapper.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="api">2. API analysis (starter_kit_api)</h2>
+<p>All admin auth routes are defined in <code class="inline">routes/api.php</code> under the <code class="inline">admin</code> prefix. With <code class="inline">VITE_SERVER_BASE_URL = http://localhost:8080/api</code>, the SPA calls <code class="inline">/admin/&lt;route&gt;</code>.</p>
+
+<table>
+  <thead><tr><th>Method &amp; path</th><th>Auth</th><th>Request body</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill post">POST</span> /admin/login</td><td>public</td><td><code class="inline">email</code>, <code class="inline">password</code>, <code class="inline">device_name?</code></td><td>Authenticate; returns access token + admin, sets refresh cookie.</td></tr>
+    <tr><td><span class="pill post">POST</span> /admin/refresh</td><td>cookie only</td><td><i>(none — cookie carries it)</i></td><td>Mint a new access token from the refresh cookie. Rotates the cookie.</td></tr>
+    <tr><td><span class="pill post">POST</span> /admin/logout</td><td>bearer</td><td><i>(none)</i></td><td>Revoke the session; clears refresh cookie.</td></tr>
+    <tr><td><span class="pill post">POST</span> /admin/forgot-password</td><td>public</td><td><code class="inline">email</code></td><td>Email a 6-digit OTP (generic response, no enumeration).</td></tr>
+    <tr><td><span class="pill post">POST</span> /admin/reset-password</td><td>public</td><td><code class="inline">email</code>, <code class="inline">otp</code>, <code class="inline">password</code>, <code class="inline">password_confirmation</code></td><td>Verify OTP &amp; set a new password.</td></tr>
+    <tr><td><span class="pill post">POST</span> /admin/change-password</td><td>bearer</td><td><code class="inline">current_password</code>, <code class="inline">password</code>, <code class="inline">password_confirmation</code></td><td>Change password; signs out other sessions.</td></tr>
+    <tr><td><span class="pill get">GET</span> /admin/profile</td><td>bearer</td><td>—</td><td>Current admin + roles + flattened permissions.</td></tr>
+    <tr><td><span class="pill put">PUT</span> /admin/profile</td><td>bearer</td><td><code class="inline">name</code>, <code class="inline">email</code></td><td>Update own profile.</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><b>Key behaviours observed in <code class="inline">AuthController</code>:</b>
+<ul>
+  <li>The refresh token is returned in the JSON body <b>only</b> when the client sends header <code class="inline">X-Client: mobile</code>. A browser omits it, so the token comes back as an <code class="inline">httpOnly; SameSite=strict</code> cookie at path <code class="inline">/api/admin</code>. <b>We are a browser client — do not send <code class="inline">X-Client</code>.</b></li>
+  <li><code class="inline">/admin/refresh</code> reads the cookie automatically, so axios must send credentials (<code class="inline">withCredentials: true</code>).</li>
+  <li>Access token TTL is short (<code class="inline">SANCTUM_ACCESS_TOKEN_EXPIRATION</code>, default <b>10 min</b>); refresh TTL default <b>60 min</b>. Expect frequent <code class="inline">401</code>s — the interceptor must handle them transparently.</li>
+  <li>Refresh tokens carry only the <code class="inline">refresh</code> ability; access tokens carry <code class="inline">access</code>. Business endpoints sit behind <code class="inline">ability:access</code>, so a refresh token can <i>only</i> hit <code class="inline">/refresh</code>.</li>
+</ul>
+</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="envelope">3. Response envelope &amp; payloads</h2>
+<p>Every response uses the <code class="inline">ApiResponder</code> trait. Success and error shapes:</p>
+
+<div class="grid">
+<div>
+<div class="filelabel">success — login / refresh</div>
+<pre>{
+  "success": true,
+  "message": "Login successful.",
+  "data": {
+    "access_token": "12|abcd...",
+    "admin": {
+      "id": 1,
+      "name": "Admin",
+      "email": "admin@example.com",
+      "user_type": "admin",
+      "user_type_label": "Admin",
+      "status": "active",
+      "status_label": "Active",
+      "roles": [ { "name": "super-admin", "status_label": "Active" } ],
+      "permissions": [ "roles.view", "admins.view" ]
+    }
+    // NOTE: no refresh_token for browser clients
+  }
+}</pre>
+</div>
+<div>
+<div class="filelabel">error — validation / auth failure</div>
+<pre>{
+  "success": false,
+  "message": "Invalid credentials.",
+  "errors": {
+    "email": ["The email field is required."]
+  }
+}</pre>
+<p class="muted" style="font-size:13.5px">Login bad-credentials → <span class="kbd">422</span>; deactivated → <span class="kbd">403</span>; expired/invalid refresh → <span class="kbd">401</span> (and the cookie is cleared server-side).</p>
+</div>
+</div>
+
+<div class="warn"><b>Two different <code class="inline">data</code> shapes — watch this.</b> Login/refresh nest the user under <code class="inline">data.admin</code>. But <code class="inline">GET /admin/profile</code> returns the <code class="inline">AdminResource</code> <i>directly</i> as <code class="inline">data</code> (no <code class="inline">admin</code> wrapper). Our API helpers must read each correctly.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="strategy">4. Token storage strategy</h2>
+<div class="grid">
+  <div class="card"><h4><span class="pill store">zustand</span> Access token</h4>
+    <p>Held in the <code class="inline">useAuthStore</code> state (memory). Components read it reactively; the axios interceptor reads it via <code class="inline">useAuthStore.getState().token</code>. <b>Not persisted</b> — lost on reload, re-minted by bootstrap.</p></div>
+  <div class="card"><h4><span class="pill cookie">httpOnly cookie</span> Refresh token</h4>
+    <p>Set &amp; rotated by the server, scoped to <code class="inline">/api/admin</code>. JS never sees it. Survives reload, so it bootstraps a new session silently.</p></div>
+</div>
+<div class="note"><b>Theme is the one thing we persist.</b> <code class="inline">useThemeStore</code> uses Zustand's <code class="inline">persist</code> middleware to keep the choice in <code class="inline">localStorage</code> (key <code class="inline">sk-theme</code>) — theme is non-sensitive, unlike the token which is deliberately never persisted.</div>
+
+<h3>Boot / reload sequence</h3>
+<div class="seq"><pre>App mounts
+   │
+   ▼
+useEffect → useAuthStore.getState().bootstrap()  ──POST /admin/refresh (cookie auto-sent)──►  API
+   │                                                                                          │
+   │   200  { access_token, admin }      ◄─────────────────────────────────────────────────── │  valid cookie
+   │      └─► set({ token, user, status: "authenticated" })
+   │
+   │   401  (no/expired cookie)          ◄─────────────────────────────────────────────────── │  no session
+   │      └─► set({ token: null, user: null, status: "unauthenticated" })  → routes show /login
+   ▼
+Route guards wait while status === "loading" (no flash of /login on reload).</pre></div>
+
+<h3>Silent refresh on 401 (during normal use)</h3>
+<div class="seq"><pre>GET /admin/profile ──► 401 (access token expired)
+   │
+   ├─ response interceptor catches 401 (not already retried, not the refresh call itself)
+   │     │
+   │     ├─ a refresh is already in flight?  → queue this request, await it
+   │     └─ otherwise → POST /admin/refresh (cookie) ──► 200 { access_token }
+   │            └─ useAuthStore.getState().setToken(new), replay queued requests
+   │
+   ├─ retry original request with new Bearer  ──► 200
+   │
+   └─ refresh itself 401s → useAuthStore.getState().clear(): reset session, toast, guard redirects /login</pre></div>
+
+<!-- =============================================== -->
+<h2 class="section" id="current">5. Current scaffolding &amp; what to fix</h2>
+<p>Partial scaffolding already exists from an earlier Context-based attempt. Switching to Zustand, correct these:</p>
+
+<table>
+  <thead><tr><th>File</th><th>Problem / change</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><code class="inline">src/context/index.js</code></td><td>Context is no longer used — Zustand needs none.</td><td><b>Delete</b> the folder.</td></tr>
+    <tr><td><code class="inline">src/provider/AuthProvider.jsx</code></td><td>Buggy, and providers aren't needed with Zustand.</td><td><b>Delete</b>; replaced by <code class="inline">features/auth/auth.store.js</code> (<a href="#authstore">§10</a>).</td></tr>
+    <tr><td><code class="inline">src/lib/auth-storage.js</code></td><td><b>Persists tokens to <code class="inline">localStorage</code></b> — violates the in-memory rule.</td><td><b>Delete.</b> The auth store holds the token in memory.</td></tr>
+    <tr><td><code class="inline">src/lib/useTheme.js</code></td><td>Holds both logic and a hook.</td><td><b>Delete</b>; logic moves into <code class="inline">store/theme.store.js</code> (<a href="#themestore">§12</a>).</td></tr>
+    <tr><td><code class="inline">src/App.jsx</code></td><td>Function body has no <code class="inline">return</code> — renders nothing.</td><td>Rewrite (<a href="#wiring">§14</a>) — only <code class="inline">QueryClientProvider</code> remains; stores need no provider.</td></tr>
+    <tr><td><code class="inline">src/hooks/</code></td><td>Empty — <code class="inline">middleware.jsx</code> imports <code class="inline">@/hooks/useAuth</code>.</td><td>Add <code class="inline">useAuth.js</code> + <code class="inline">useTheme.js</code> as thin store selectors (<a href="#hooks">§11</a>).</td></tr>
+    <tr><td><code class="inline">src/pages/auth/Login.jsx</code></td><td>Imports <code class="inline">@/router</code> (doesn't exist) &amp; uses uncontrolled <code class="inline">defaultValue</code>; never calls the API.</td><td>Rewrite to a form calling the store's <code class="inline">login()</code> (<a href="#screens">§15</a>).</td></tr>
+    <tr><td><code class="inline">routes/middleware.jsx</code></td><td>Imports from <code class="inline">react-router-dom</code>; project uses <code class="inline">react-router</code> v8.</td><td>Change import to <code class="inline">react-router</code>; add a loading guard.</td></tr>
+  </tbody>
+</table>
+
+<div class="note">The route config, guards (<code class="inline">ProtectedRoute</code>/<code class="inline">GuestRoute</code>), path map are already close to final — we keep their structure; the guards just read from <code class="inline">useAuth</code> (now backed by the store) and gate on the loading state.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="files">6. Target file layout</h2>
+<pre>src/
+├─ store/
+│  └─ theme.store.js        # useThemeStore (Zustand + persist)
+├─ hooks/
+│  ├─ useAuth.js            # selector over useAuthStore  (used by guards/screens)
+│  └─ useTheme.js           # selector over useThemeStore
+├─ lib/
+│  ├─ api.js                # axios instance + request/response interceptors
+│  ├─ base-service.js       # BaseService class — typed envelope wrappers over `api`
+│  ├─ query-client.js       # the shared QueryClient
+│  └─ errors.js             # apiError() helper
+├─ validation/              # Zod schemas (one source of truth for form rules)
+│  ├─ auth.js               # loginSchema, forgotSchema, resetSchema, changePasswordSchema
+│  └─ admin-users.js        # adminUserCreateSchema, adminUserUpdateSchema
+├─ features/                # ONE convention for every API surface (auth included)
+│  ├─ auth/
+│  │  ├─ auth.store.js       # useAuthStore (Zustand): user, token, status, login/logout/bootstrap
+│  │  ├─ auth.api.js         # AuthService extends BaseService → exports `authApi` instance
+│  │  └─ auth.hooks.js       # (optional) useForgotPassword/useResetPassword via useMutation
+│  └─ admin-users/
+│     ├─ admin-users.api.js  # AdminUserService extends BaseService → exports `adminUserApi`
+│     ├─ admin-users.keys.js # query-key factory
+│     └─ admin-users.hooks.js# useAdminUsers/useAdminUser/useSaveAdminUser
+├─ components/
+│  └─ ui/sonner.jsx         # <Toaster/> wrapper (theme-aware)
+├─ routes/                  # (exists) index.jsx, middleware.jsx, route.config.jsx, path.js
+├─ pages/                   # (exists) auth/*, profile/*, errors/*, Dashboard
+├─ App.jsx                  # QueryClientProvider + router + toaster + bootstrap effect
+└─ main.jsx                 # BrowserRouter + <App/></pre>
+<div class="note"><b>No <code class="inline">context/</code>, no <code class="inline">provider/</code>, no <code class="inline">token-store.js</code>.</b> Zustand stores are module singletons, so there is nothing to wrap and no module variable to mirror. The auth store <i>is</i> the token store.</div>
+<div class="note"><b>Two borrowed patterns</b> (see <a href="auth-approach-comparison-report.html">the approach comparison report</a>): every feature's <code class="inline">.api.js</code> is a small <b>service class extending <code class="inline">BaseService</code></b> (DRY envelope unwrapping over the shared, interceptor-equipped <code class="inline">api</code>), and all form rules live as <b>Zod schemas in <code class="inline">validation/</code></b>, fed to react-hook-form via <code class="inline">zodResolver</code>.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="deps">7. Dependencies &amp; env</h2>
+<p>New installs: Zustand, the toaster, react-hook-form, <b>Zod + the RHF resolver</b>, and the Query devtools. <code class="inline">axios</code>, <code class="inline">react-router</code>, and <code class="inline">@tanstack/react-query</code> are already in <code class="inline">package.json</code>.</p>
+<pre><span class="muted"># from starter_kit_frontend/</span>
+npm install zustand sonner react-hook-form zod @hookform/resolvers
+npm install -D @tanstack/react-query-devtools</pre>
+<p class="muted" style="font-size:13.5px"><code class="inline">@hookform/resolvers</code> is the adapter that lets react-hook-form validate with a Zod schema (<code class="inline">zodResolver</code>). See <a href="#query">§9.5</a>.</p>
+
+<div class="filelabel">.env  (already present — confirm trailing slash handling)</div>
+<pre>VITE_SERVER_BASE_URL=http://localhost:8080/api</pre>
+<p class="muted">Routes are then called as <code class="inline">/admin/login</code> etc. Keep a matching <code class="inline">.env.example</code> committed; keep <code class="inline">.env</code> git-ignored.</p>
+
+<div class="warn"><b>CORS / cookie prerequisite (backend).</b> The Vite dev origin (<code class="inline">http://localhost:5173</code>) differs from the API origin, so for the refresh cookie to flow the API must, in <code class="inline">config/cors.php</code>: allow the SPA origin, set <code class="inline">'supports_credentials' => true</code>, and expose the auth paths. The cookie is <code class="inline">SameSite=strict</code> + non-secure in <code class="inline">local</code> — fine for <code class="inline">localhost</code>. Verify this before testing the browser flow.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="axios">8. Axios instance + interceptors</h2>
+
+<h3>8.1 Token source: the auth store</h3>
+<p>There is no separate token module — the interceptor reads the token straight from the Zustand store with <code class="inline">getState()</code>, which works outside React. On a failed refresh it calls the store's <code class="inline">clear()</code> directly, so there's no callback-registration plumbing.</p>
+<div class="note"><b>Import cycle is safe.</b> <code class="inline">api.js</code> imports <code class="inline">useAuthStore</code>; the store imports <code class="inline">auth.api.js</code>, which imports <code class="inline">api.js</code>. ES modules handle this because every cross-reference is used <i>inside a function at runtime</i> (the interceptor callback, the store actions), never at module-evaluation time.</div>
+
+<h3>8.2 The axios instance</h3>
+<div class="filelabel">src/lib/api.js</div>
+<pre>import axios from "axios";
+import { useAuthStore } from "@/features/auth/auth.store";
+
+const BASE = import.meta.env.VITE_SERVER_BASE_URL;
+
+export const api = axios.create({
+  baseURL: BASE,
+  withCredentials: true,            <span class="muted">// send/receive the httpOnly refresh cookie</span>
+  headers: { Accept: "application/json" },
+});
+
+<span class="muted">// ---- Request: attach the in-memory bearer token (read straight from the store) ----</span>
+api.interceptors.request.use((config) =&gt; {
+  const token = useAuthStore.getState().token;   <span class="muted">// synchronous, outside React</span>
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+<span class="muted">// ---- Response: silent single-flight refresh on 401 ----</span>
+let isRefreshing = false;
+let waiters = [];                    <span class="muted">// requests parked while a refresh is in flight</span>
+const flushWaiters = (token) =&gt; { waiters.forEach((w) =&gt; w(token)); waiters = []; };
+
+api.interceptors.response.use(
+  (res) =&gt; res,
+  async (error) =&gt; {
+    const { response, config } = error;
+    const original = config || {};
+
+    <span class="muted">// Only handle 401s that aren't the refresh call itself and haven't retried.</span>
+    const isRefreshCall = original.url?.includes("/admin/refresh");
+    if (response?.status !== 401 || original._retried || isRefreshCall) {
+      return Promise.reject(error);
+    }
+    original._retried = true;
+
+    <span class="muted">// A refresh is already running — wait for its result, then replay.</span>
+    if (isRefreshing) {
+      return new Promise((resolve, reject) =&gt; {
+        waiters.push((token) =&gt; {
+          if (!token) return reject(error);
+          original.headers.Authorization = `Bearer ${token}`;
+          resolve(api(original));
+        });
+      });
+    }
+
+    isRefreshing = true;
+    try {
+      <span class="muted">// Bare axios (not `api`) to skip interceptors; cookie carries the refresh token.</span>
+      const { data } = await axios.post(`${BASE}/admin/refresh`, {}, {
+        withCredentials: true,
+        headers: { Accept: "application/json" },
+      });
+      const newToken = data?.data?.access_token ?? null;
+      useAuthStore.getState().setToken(newToken);
+      flushWaiters(newToken);
+      original.headers.Authorization = `Bearer ${newToken}`;
+      return api(original);
+    } catch (refreshError) {
+      useAuthStore.getState().clear();   <span class="muted">// reset session + toast; guard redirects to /login</span>
+      flushWaiters(null);
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
+  },
+);</pre>
+
+<div class="note"><b>Single-flight</b> matters: if a dashboard fires 5 requests and all 401 at once, only the first triggers <code class="inline">/refresh</code>; the other four park in <code class="inline">waiters</code> and replay with the new token. Without this you'd hammer <code class="inline">/refresh</code> and possibly rotate the cookie into a race.</div>
+
+<h3>8.3 BaseService — the shared transport class</h3>
+<p>Instead of repeating <code class="inline">.then((r) =&gt; r.data.data)</code> in every feature, a small <code class="inline">BaseService</code> unwraps the <code class="inline">{ success, message, data }</code> envelope once. Because the envelope <b>always</b> carries a <code class="inline">message</code>, there's no need for a separate <code class="inline">*WithMessage</code> variant — every method returns the <b>whole envelope</b>, and callers destructure <code class="inline">{ data }</code> or <code class="inline">{ data, message }</code> as needed. It runs on the <b>same shared <code class="inline">api</code> instance</b> from §8.2, so it inherits the bearer token + silent-refresh interceptor (unlike the borrowed original, which created one axios instance per service).</p>
+<div class="filelabel">src/lib/base-service.js</div>
+<pre>import { api } from "@/lib/api";
+
+<span class="muted">// Every method resolves to the API envelope: { success, message, data }.</span>
+<span class="muted">// Read `.data` for the payload; read `.message` when you want to toast it.</span>
+export class BaseService {
+  get(url, config)        { return api.get(url, config).then((r) =&gt; r.data); }
+  post(url, body, config) { return api.post(url, body, config).then((r) =&gt; r.data); }
+  put(url, body, config)  { return api.put(url, body, config).then((r) =&gt; r.data); }
+  del(url, config)        { return api.delete(url, config).then((r) =&gt; r.data); }
+}</pre>
+<div class="note"><b>Why one shape, not a conditional.</b> A method that sometimes returns <code class="inline">data</code> and sometimes <code class="inline">{ data, message }</code> forces callers to know which — fragile. Returning the same envelope everywhere is predictable: the payload is always <code class="inline">res.data</code>, the message always <code class="inline">res.message</code>.</div>
+
+<h3>8.4 Auth service (extends BaseService)</h3>
+<p>Auth's transport lives at <code class="inline">features/auth/auth.api.js</code> as a class extending <code class="inline">BaseService</code>, exported as a ready instance. Each method resolves to the envelope; callers read <code class="inline">.data</code> (and <code class="inline">.message</code> where useful). These feed the auth store (§10); the password-flow methods can also be wrapped in <code class="inline">useMutation</code> from <code class="inline">auth.hooks.js</code>.</p>
+<div class="filelabel">src/features/auth/auth.api.js</div>
+<pre>import { BaseService } from "@/lib/base-service";
+
+class AuthService extends BaseService {
+  login(email, password) { return this.post("/admin/login", { email, password }); }   <span class="muted">// data: { access_token, admin }</span>
+  refresh()              { return this.post("/admin/refresh"); }                       <span class="muted">// data: { access_token, admin }</span>
+  logout()               { return this.post("/admin/logout"); }
+
+  profile()              { return this.get("/admin/profile"); }                         <span class="muted">// data: AdminResource</span>
+  updateProfile(payload) { return this.put("/admin/profile", payload); }
+
+  forgotPassword(email)  { return this.post("/admin/forgot-password", { email }); }
+  resetPassword(payload) { return this.post("/admin/reset-password", payload); }   <span class="muted">// { email, otp, password, password_confirmation }</span>
+  changePassword(payload){ return this.post("/admin/change-password", payload); }  <span class="muted">// { current_password, password, password_confirmation }</span>
+}
+
+export const authApi = new AuthService();</pre>
+
+<!-- =============================================== -->
+<h2 class="section" id="query">9. Data layer — TanStack Query</h2>
+<p>All <b>server state</b> — lists, detail records, and writes — goes through TanStack Query. The axios instance from §8 stays as the transport layer; TanStack Query simply calls into it and adds caching, background refresh, loading/error state, and cache invalidation. <code class="inline">@tanstack/react-query</code> is already installed; add the devtools too.</p>
+
+<h3>9.1 Who owns what: Query vs Zustand</h3>
+<p>"TanStack Query for all API calls" does <b>not</b> mean it owns auth identity. The split:</p>
+<table>
+  <thead><tr><th>State</th><th>Owner</th><th>Examples</th></tr></thead>
+  <tbody>
+    <tr><td><b>Server state</b> (cached, refetchable)</td><td>TanStack Query (<code class="inline">useQuery</code>)</td><td>admin-users, roles, todos, audit logs, profile <i>view</i></td></tr>
+    <tr><td><b>Writes</b></td><td>TanStack Query (<code class="inline">useMutation</code>)</td><td>create / edit / delete, change password</td></tr>
+    <tr><td><b>Session / identity</b></td><td><b>Zustand</b> (<code class="inline">useAuthStore</code>)</td><td><code class="inline">user</code>, in-memory <code class="inline">token</code>, <code class="inline">status</code></td></tr>
+    <tr><td><b>UI / preference</b></td><td><b>Zustand</b> (<code class="inline">useThemeStore</code>) / local state</td><td>theme, modals, form state (RHF)</td></tr>
+  </tbody>
+</table>
+<div class="note"><b>Why auth lives in Zustand, not the query cache.</b> Route guards and the axios interceptor need the token / <code class="inline">status</code> <i>synchronously</i> — the interceptor reads it from <code class="inline">getState()</code> outside any React render. That's identity state, not cached server data. Login/logout/refresh are imperative session transitions (set token + user + status together), which is exactly a store action — not a passive cache entry. So auth has <b>no query key</b>; its results land in the store.</div>
+
+<h3>9.2 QueryClient setup</h3>
+<div class="filelabel">src/lib/query-client.js</div>
+<pre>import { QueryClient } from "@tanstack/react-query";
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,   <span class="muted">// sensible default for an admin panel</span>
+      staleTime: 60_000,             <span class="muted">// override per-query as needed (see §9.5)</span>
+    },
+  },
+});</pre>
+<p>The <code class="inline">QueryClientProvider</code> is the only provider in the tree — see <a href="#wiring">App composition (§14)</a>. (Zustand needs none; TanStack Query does.)</p>
+
+<h3>9.3 Layering</h3>
+<div class="seq"><pre>axios instance (transport + silent refresh)        ← lib/api.js  (reads token from the auth store)
+        ▲
+TanStack Query (server-state cache)                ← useQuery / useMutation hooks
+        ▲
+Components / react-hook-form                        ← consume the hooks
+        ▲
+Zustand stores (useAuthStore, useThemeStore)       ← identity &amp; UI state, no provider</pre></div>
+
+<h3>9.4 Recommended structure — one hook per operation</h3>
+<p>Don't scatter inline <code class="inline">useQuery({ queryKey, queryFn })</code> across components. Wrap each operation in a named hook, with a <b>query-key factory</b> per resource so invalidation never breaks on a typo. Co-locate per feature:</p>
+<pre>src/features/admin-users/
+├─ admin-users.api.js     <span class="muted"># raw axios calls (transport)</span>
+├─ admin-users.keys.js    <span class="muted"># query-key factory</span>
+└─ admin-users.hooks.js   <span class="muted"># useAdminUsers(), useAdminUser(id), useSaveAdminUser(id)</span></pre>
+
+<div class="grid">
+<div>
+<div class="filelabel">admin-users.keys.js</div>
+<pre>export const adminUserKeys = {
+  all: ["admin-users"],
+  list: (filters) =&gt; ["admin-users", "list", filters],
+  detail: (id) =&gt; ["admin-users", "detail", id],
+};</pre>
+</div>
+<div>
+<div class="filelabel">admin-users.api.js  (extends BaseService)</div>
+<pre>import { BaseService } from "@/lib/base-service";
+
+class AdminUserService extends BaseService {
+  list(filters)        { return this.get("/admin/admin-users", { params: filters }); }
+  getOne(id)           { return this.get(`/admin/admin-users/${id}`); }
+  create(body)         { return this.post("/admin/admin-users", body); }
+  update(id, body)     { return this.put(`/admin/admin-users/${id}`, body); }
+  remove(id)           { return this.del(`/admin/admin-users/${id}`); }
+}
+
+export const adminUserApi = new AdminUserService();</pre>
+</div>
+</div>
+
+<div class="filelabel">admin-users.hooks.js</div>
+<pre>import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { adminUserKeys } from "./admin-users.keys";
+import { adminUserApi } from "./admin-users.api";
+
+export function useAdminUsers(filters) {
+  return useQuery({
+    queryKey: adminUserKeys.list(filters),
+    queryFn: () =&gt; adminUserApi.list(filters).then((r) =&gt; r.data),   <span class="muted">// unwrap envelope</span>
+  });
+}
+
+export function useAdminUser(id) {
+  return useQuery({
+    queryKey: adminUserKeys.detail(id),
+    queryFn: () =&gt; adminUserApi.getOne(id).then((r) =&gt; r.data),
+    enabled: Boolean(id),            <span class="muted">// skip when creating</span>
+  });
+}
+
+export function useSaveAdminUser(id) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (values) =&gt; (id ? adminUserApi.update(id, values) : adminUserApi.create(values)),
+    onSuccess: (res) =&gt; {            <span class="muted">// res = { success, message, data }</span>
+      qc.invalidateQueries({ queryKey: adminUserKeys.all });   <span class="muted">// refresh the list</span>
+      toast.success(res.message);    <span class="muted">// the API message — no separate WithMessage call needed</span>
+    },
+  });
+}</pre>
+<p>Components stay clean — they never touch axios or query keys:</p>
+<pre>const { data, isLoading } = useAdminUsers(filters);     <span class="muted">// list page</span>
+const { mutateAsync, isPending } = useSaveAdminUser(id); <span class="muted">// form page</span></pre>
+
+<h3>9.5 Forms: react-hook-form + Zod + useMutation (+ useQuery to prefill)</h3>
+<p>Validation rules live <b>once</b> as a Zod schema in <code class="inline">validation/</code>, fed to react-hook-form via <code class="inline">zodResolver</code>. The submit is a <code class="inline">useMutation</code>; editing adds a <code class="inline">useQuery</code> to load and <code class="inline">reset()</code> to prefill. One component handles both create and edit.</p>
+<div class="filelabel">src/validation/admin-users.js</div>
+<pre>import { z } from "zod";
+
+export const adminUserCreateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Enter a valid email"),
+  role: z.string().min(1, "Pick a role"),
+});
+
+<span class="muted">// edit reuses the same shape (extend/partial as needed)</span>
+export const adminUserUpdateSchema = adminUserCreateSchema;</pre>
+
+<div class="filelabel">src/pages/admins/AdminUserForm.jsx  (core)</div>
+<pre>import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
+import { useAdminUser, useSaveAdminUser } from "@/features/admin-users/admin-users.hooks";
+import { adminUserCreateSchema } from "@/validation/admin-users";
+import { apiError } from "@/lib/errors";
+import { ROUTES } from "@/routes/path";
+
+export default function AdminUserForm({ adminId }) {     <span class="muted">// id present = edit</span>
+  const navigate = useNavigate();
+  const isEdit = Boolean(adminId);
+
+  const { data: existing, isLoading } = useAdminUser(adminId);   <span class="muted">// auto-skipped on create</span>
+  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm({
+    resolver: zodResolver(adminUserCreateSchema),    <span class="muted">// Zod validates the form</span>
+    defaultValues: { name: "", email: "", role: "" },
+  });
+
+  useEffect(() =&gt; { if (existing) reset(existing); }, [existing, reset]);   <span class="muted">// prefill</span>
+
+  const { mutateAsync, isPending } = useSaveAdminUser(adminId);
+
+  const onSubmit = async (values) =&gt; {   <span class="muted">// only runs once Zod passes</span>
+    try {
+      await mutateAsync(values);       <span class="muted">// success toast (API message) + list refresh handled in the hook</span>
+      navigate(ROUTES.admins?.index ?? "/admin-users");
+    } catch (err) {
+      <span class="muted">// Map Laravel 422 field errors back onto the form…</span>
+      const fieldErrors = err?.response?.data?.errors;
+      if (fieldErrors) {
+        Object.entries(fieldErrors).forEach(([field, msgs]) =&gt; setError(field, { message: msgs[0] }));
+      } else {
+        toast.error(apiError(err));   <span class="muted">// …otherwise toast the message</span>
+      }
+    }
+  };
+
+  if (isEdit &amp;&amp; isLoading) return &lt;div&gt;Loading…&lt;/div&gt;;
+
+  return (
+    &lt;form onSubmit={handleSubmit(onSubmit)}&gt;
+      &lt;input {...register("name")} /&gt;
+      {errors.name &amp;&amp; &lt;span&gt;{errors.name.message}&lt;/span&gt;}   <span class="muted">// message comes from the Zod schema</span>
+      &lt;input {...register("email")} /&gt;
+      {errors.email &amp;&amp; &lt;span&gt;{errors.email.message}&lt;/span&gt;}
+      &lt;button disabled={isPending}&gt;{isPending ? "Saving…" : isEdit ? "Update" : "Create"}&lt;/button&gt;
+    &lt;/form&gt;
+  );
+}</pre>
+<div class="note"><b>Why Zod-via-resolver:</b> the rules (and messages) live in one reusable schema instead of being scattered inside each <code class="inline">register(...)</code> call. <code class="inline">handleSubmit</code> runs the schema first, so <code class="inline">onSubmit</code> only fires with valid data, and <code class="inline">errors.&lt;field&gt;.message</code> is populated straight from the schema. (Server-side 422s are still mapped back via <code class="inline">setError</code>.)</div>
+<div class="note"><b>When you can skip <code class="inline">useMutation</code>:</b> only when the write has no cached query to refresh — e.g. the pure auth forms (login, forgot/reset password) whose results go into the auth store, not the query cache. Those still use react-hook-form + <code class="inline">zodResolver</code>, calling <code class="inline">authApi</code> (or a thin <code class="inline">useMutation</code> in <code class="inline">auth.hooks.js</code>).</div>
+
+<h3>9.6 Freshness knobs (per query)</h3>
+<table>
+  <thead><tr><th>Goal</th><th>Options</th></tr></thead>
+  <tbody>
+    <tr><td>Reuse cache within a window</td><td><code class="inline">staleTime: 5 * 60_000</code></td></tr>
+    <tr><td>Refetch on every visit</td><td><code class="inline">refetchOnMount: "always"</code> (or <code class="inline">staleTime: 0</code>)</td></tr>
+    <tr><td>Auto-refresh while the page sits idle</td><td><code class="inline">refetchInterval: 5 * 60_000</code> (active timer — <code class="inline">staleTime</code> alone won't do this)</td></tr>
+    <tr><td>Keep / evict cache between visits</td><td><code class="inline">gcTime</code> (default 5 min)</td></tr>
+    <tr><td>Multi-admin: see other admins' edits</td><td>poll with <code class="inline">refetchInterval</code>, or push via WebSockets then <code class="inline">invalidateQueries</code></td></tr>
+  </tbody>
+</table>
+<div class="warn"><b>Cache is per-browser, client-side.</b> <code class="inline">invalidateQueries</code> only refreshes the <i>current</i> user's cache — it cannot reach another admin's browser. For concurrent-edit freshness, use <code class="inline">refetchInterval</code> (polling) on the critical lists, or Laravel Reverb/Echo for real-time push.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="authstore">10. Auth store (Zustand)</h2>
+<p>The store is a module singleton — no provider, no Context. It holds session state and the async auth actions; the axios interceptor (§8) reads and clears it via <code class="inline">getState()</code>.</p>
+
+<div class="filelabel">src/features/auth/auth.store.js</div>
+<pre>import { create } from "zustand";
+import { toast } from "sonner";
+import { authApi } from "./auth.api";
+
+<span class="muted">// Guards the boot refresh against React 18/19 StrictMode's double-invoked effect.</span>
+let bootstrapStarted = false;
+
+<span class="muted">// status: "loading" (bootstrapping) | "authenticated" | "unauthenticated"</span>
+export const useAuthStore = create((set, get) =&gt; ({
+  user: null,
+  token: null,                       <span class="muted">// in memory only — NEVER persisted</span>
+  status: "loading",
+
+  setToken: (token) =&gt; set({ token }),
+  setUser: (user) =&gt; set({ user }),
+
+  isAuthenticated: () =&gt; get().status === "authenticated",
+
+  <span class="muted">// Called once on app load: mint an access token from the refresh cookie.</span>
+  bootstrap: async () =&gt; {
+    if (bootstrapStarted) return;
+    bootstrapStarted = true;
+    try {
+      const { data } = await authApi.refresh();       <span class="muted">// envelope → data: { access_token, admin }</span>
+      set({ token: data.access_token, user: data.admin, status: "authenticated" });
+    } catch {
+      set({ token: null, user: null, status: "unauthenticated" });
+    }
+  },
+
+  login: async (email, password) =&gt; {
+    const { data } = await authApi.login(email, password);  <span class="muted">// throws on 4xx → caller toasts</span>
+    set({ token: data.access_token, user: data.admin, status: "authenticated" });
+    return data.admin;
+  },
+
+  logout: async () =&gt; {
+    try { await authApi.logout(); } catch { <span class="muted">/* best-effort */</span> }
+    set({ token: null, user: null, status: "unauthenticated" });
+  },
+
+  <span class="muted">// Called by the axios interceptor when a refresh ultimately fails.</span>
+  clear: () =&gt; {
+    set({ token: null, user: null, status: "unauthenticated" });
+    toast.error("Your session has expired. Please sign in again.");
+  },
+}));</pre>
+
+<div class="warn"><b>Do NOT add the <code class="inline">persist</code> middleware to this store.</b> The whole point is that the token never reaches storage. The session is re-established on reload by <code class="inline">bootstrap()</code> via the httpOnly cookie. (Only the theme store persists — §12.)</div>
+
+<div class="note"><b>Reading the store.</b> Inside components, select the slice you need: <code class="inline">const user = useAuthStore((s) =&gt; s.user)</code>. Outside React (interceptor): <code class="inline">useAuthStore.getState().token</code>. Calling actions anywhere: <code class="inline">useAuthStore.getState().logout()</code>.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="hooks">11. Store hooks (useAuth / useTheme)</h2>
+<p>Thin selector hooks give screens and guards an ergonomic, stable shape and keep the store's exact key names in one place. <code class="inline">useShallow</code> prevents needless re-renders when selecting an object of several fields.</p>
+<div class="grid">
+<div>
+<div class="filelabel">src/hooks/useAuth.js</div>
+<pre>import { useShallow } from "zustand/react/shallow";
+import { useAuthStore } from "@/features/auth/auth.store";
+
+export function useAuth() {
+  return useAuthStore(
+    useShallow((s) =&gt; ({
+      user: s.user,
+      token: s.token,
+      status: s.status,
+      isAuthenticated: s.status === "authenticated",
+      isLoading: s.status === "loading",
+      login: s.login,
+      logout: s.logout,
+      setUser: s.setUser,
+    })),
+  );
+}</pre>
+</div>
+<div>
+<div class="filelabel">src/hooks/useTheme.js</div>
+<pre>import { useShallow } from "zustand/react/shallow";
+import { useThemeStore } from "@/store/theme.store";
+
+export function useTheme() {
+  return useThemeStore(
+    useShallow((s) =&gt; ({
+      theme: s.theme,
+      toggle: s.toggle,
+      setTheme: s.setTheme,
+    })),
+  );
+}</pre>
+</div>
+</div>
+<div class="note">These wrappers are optional sugar — components may call <code class="inline">useAuthStore</code>/<code class="inline">useThemeStore</code> directly with their own selectors. But keeping <code class="inline">useAuth()</code> means <code class="inline">routes/middleware.jsx</code> and the screens read the same way they would have with Context — minimal churn.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="themestore">12. Theme store (Zustand)</h2>
+<p>Theme is <b>not sensitive</b>, so it uses the <code class="inline">persist</code> middleware to remember the choice in <code class="inline">localStorage</code>. The store also applies the <code class="inline">dark</code> class to <code class="inline">&lt;html&gt;</code> whenever the theme changes and on rehydration.</p>
+<div class="filelabel">src/store/theme.store.js</div>
+<pre>import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+const applyTheme = (theme) =&gt;
+  document.documentElement.classList.toggle("dark", theme === "dark");
+
+const systemPrefersDark = () =&gt;
+  window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+export const useThemeStore = create(
+  persist(
+    (set, get) =&gt; ({
+      theme: systemPrefersDark() ? "dark" : "light",
+      setTheme: (theme) =&gt; { applyTheme(theme); set({ theme }); },
+      toggle: () =&gt; {
+        const next = get().theme === "dark" ? "light" : "dark";
+        applyTheme(next);
+        set({ theme: next });
+      },
+    }),
+    {
+      name: "sk-theme",                       <span class="muted">// localStorage key</span>
+      onRehydrateStorage: () =&gt; (state) =&gt; {  <span class="muted">// apply the saved theme on load</span>
+        if (state) applyTheme(state.theme);
+      },
+    },
+  ),
+);</pre>
+<div class="note">Because <code class="inline">persist</code> hydrates synchronously on first import, the <code class="inline">dark</code> class is applied as soon as the store is first used (the <code class="inline">Toaster</code> in <code class="inline">App.jsx</code> reads <code class="inline">useTheme</code>, so it imports early). No <code class="inline">ThemeProvider</code> and no boot effect are needed.</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="toaster">13. Toaster (Sonner)</h2>
+<p>A theme-aware wrapper so toasts match the active theme. Mount it once near the root.</p>
+<div class="filelabel">src/components/ui/sonner.jsx</div>
+<pre>import { Toaster as Sonner } from "sonner";
+import { useTheme } from "@/hooks/useTheme";
+
+export function Toaster(props) {
+  const { theme } = useTheme();
+  return &lt;Sonner theme={theme} position="top-right" richColors closeButton {...props} /&gt;;
+}</pre>
+<p>Usage anywhere: <code class="inline">import { toast } from "sonner";</code> then <code class="inline">toast.success("Saved")</code> / <code class="inline">toast.error(msg)</code>. A small helper turns an axios error into a message:</p>
+<div class="filelabel">src/lib/errors.js</div>
+<pre><span class="muted">// Pull the API's `message`, else the first validation error, else a fallback.</span>
+export function apiError(error, fallback = "Something went wrong.") {
+  const data = error?.response?.data;
+  if (data?.message) return data.message;
+  const first = data?.errors &amp;&amp; Object.values(data.errors)[0];
+  return Array.isArray(first) ? first[0] : fallback;
+}</pre>
+
+<!-- =============================================== -->
+<h2 class="section" id="wiring">14. App composition &amp; routes</h2>
+<p>With Zustand there are <b>no auth/theme providers</b> — the stores are singletons. The only provider is <code class="inline">QueryClientProvider</code> (TanStack Query requires it). The auth session is bootstrapped in a one-time effect; the theme store self-applies on import. The Toaster and Devtools sit outside the routes so they persist across navigation.</p>
+
+<div class="filelabel">src/App.jsx</div>
+<pre>import { useEffect } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { queryClient } from "@/lib/query-client";
+import { useAuthStore } from "@/features/auth/auth.store";
+import { Toaster } from "@/components/ui/sonner";
+import AppRouter from "@/routes";
+
+export default function App() {
+  useEffect(() =&gt; {
+    useAuthStore.getState().bootstrap();   <span class="muted">// silent refresh from the cookie (guarded against StrictMode)</span>
+  }, []);
+
+  return (
+    &lt;QueryClientProvider client={queryClient}&gt;
+      &lt;AppRouter /&gt;
+      &lt;Toaster /&gt;
+      &lt;ReactQueryDevtools initialIsOpen={false} /&gt;
+    &lt;/QueryClientProvider&gt;
+  );
+}</pre>
+
+<div class="filelabel">src/main.jsx  (BrowserRouter stays here)</div>
+<pre>import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router";
+import "./index.css";
+import App from "./App.jsx";
+
+createRoot(document.getElementById("root")).render(
+  &lt;StrictMode&gt;
+    &lt;BrowserRouter&gt;
+      &lt;App /&gt;
+    &lt;/BrowserRouter&gt;
+  &lt;/StrictMode&gt;,
+);</pre>
+
+<h3>Guard the loading state</h3>
+<p><code class="inline">middleware.jsx</code> must not redirect to <code class="inline">/login</code> while the boot refresh is still in flight, or a reload on a protected page would flash the login screen. Fix the import (<code class="inline">react-router</code>) and gate on <code class="inline">isLoading</code>:</p>
+<div class="filelabel">src/routes/middleware.jsx  (updated)</div>
+<pre>import { Navigate, Outlet, useLocation } from "react-router";
+import { useAuth } from "@/hooks/useAuth";
+import { ROUTES } from "@/routes/path";
+
+function FullScreenLoader() {
+  return &lt;div className="grid min-h-screen place-items-center text-muted-foreground"&gt;Loading…&lt;/div&gt;;
+}
+
+export function ProtectedRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  if (isLoading) return &lt;FullScreenLoader /&gt;;
+  if (!isAuthenticated)
+    return &lt;Navigate to={ROUTES.auth.login} replace state={{ from: location }} /&gt;;
+  return &lt;Outlet /&gt;;
+}
+
+export function GuestRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  if (isLoading) return &lt;FullScreenLoader /&gt;;
+  if (isAuthenticated) {
+    const to = location.state?.from?.pathname ?? ROUTES.dashboard;
+    return &lt;Navigate to={to} replace /&gt;;
+  }
+  return &lt;Outlet /&gt;;
+}</pre>
+<p class="muted">The existing <code class="inline">routes/index.jsx</code> and <code class="inline">route.config.jsx</code> stay as-is (uncomment the protected <code class="inline">AppLayout</code> group + dashboard/profile children once their pages are wired).</p>
+
+<!-- =============================================== -->
+<h2 class="section" id="screens">15. Wiring the screens</h2>
+
+<h4>Login</h4>
+<p>react-hook-form + <code class="inline">zodResolver</code> validates the fields, calls the store's <code class="inline">login()</code>, toasts on failure, and redirects to the intended page (or dashboard). Replace the broken <code class="inline">@/router</code> import with <code class="inline">react-router</code>'s <code class="inline">useNavigate</code> / <code class="inline">Link</code>.</p>
+<div class="filelabel">src/validation/auth.js</div>
+<pre>import { z } from "zod";
+
+export const loginSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const forgotSchema = z.object({ email: z.string().email() });
+
+export const resetSchema = z.object({
+  email: z.string().email(),
+  otp: z.string().length(6, "6-digit code"),
+  password: z.string().min(8, "At least 8 characters"),
+  password_confirmation: z.string(),
+}).refine((v) =&gt; v.password === v.password_confirmation, {
+  message: "Passwords do not match", path: ["password_confirmation"],
+});</pre>
+
+<div class="filelabel">src/pages/auth/Login.jsx  (core handler)</div>
+<pre>import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate, useLocation, Link } from "react-router";
+import { useAuth } from "@/hooks/useAuth";
+import { loginSchema } from "@/validation/auth";
+import { apiError } from "@/lib/errors";
+import { toast } from "sonner";
+import { ROUTES } from "@/routes/path";
+
+export default function Login() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const onSubmit = async ({ email, password }) =&gt; {   <span class="muted">// runs only once Zod passes</span>
+    try {
+      await login(email, password);
+      toast.success("Welcome back!");
+      navigate(location.state?.from?.pathname ?? ROUTES.dashboard, { replace: true });
+    } catch (err) {
+      toast.error(apiError(err, "Unable to sign in."));
+    }
+  };
+  <span class="muted">// ...bind {...register("email")}, {...register("password")} into the AuthLayout + Field markup,</span>
+  <span class="muted">//    show errors.email?.message / errors.password?.message, disable button while `isSubmitting`.</span>
+}</pre>
+
+<table>
+  <thead><tr><th>Screen</th><th>Calls</th><th>On success</th></tr></thead>
+  <tbody>
+    <tr><td>ForgotPassword</td><td><code class="inline">authApi.forgotPassword(email)</code> (schema: <code class="inline">forgotSchema</code>)</td><td>Toast generic message → go to ResetPassword with email prefilled.</td></tr>
+    <tr><td>ResetPassword</td><td><code class="inline">authApi.resetPassword({ email, otp, password, password_confirmation })</code> (<code class="inline">resetSchema</code>)</td><td>Toast success → redirect <code class="inline">/login</code>.</td></tr>
+    <tr><td>ProfileView/Edit</td><td><code class="inline">authApi.profile()</code> / <code class="inline">authApi.updateProfile({ name, email })</code></td><td>Update <code class="inline">useAuthStore.getState().setUser(...)</code>, toast.</td></tr>
+    <tr><td>PasswordUpdate</td><td><code class="inline">authApi.changePassword({ current_password, password, password_confirmation })</code></td><td>Toast "other sessions signed out".</td></tr>
+    <tr><td>Topbar / Sidebar</td><td><code class="inline">logout()</code>, read <code class="inline">user</code> &amp; <code class="inline">user.permissions</code></td><td>Redirect to <code class="inline">/login</code>; gate menu items by permission.</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><b>Permission gating</b> is free: <code class="inline">user.permissions</code> is a flat string array from the API. A selector <code class="inline">const can = (p) =&gt; useAuthStore.getState().user?.permissions?.includes(p)</code> (or a reactive <code class="inline">useAuthStore((s) =&gt; s.user?.permissions ?? [])</code>) drives conditional menu items and buttons. (Server still enforces — this is UX only.)</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="flows">16. End-to-end flows</h2>
+<div class="grid">
+  <div class="card"><h4>Fresh login</h4>
+  <p>Type creds → store <code class="inline">login()</code> → <code class="inline">POST /admin/login</code> → token+user into the store, status authenticated, cookie set → navigate to dashboard.</p></div>
+  <div class="card"><h4>Reload on a protected page</h4>
+  <p>App boots → <code class="inline">status="loading"</code> → guards show loader → effect calls <code class="inline">bootstrap()</code> → <code class="inline">POST /admin/refresh</code> (cookie) → token re-minted → page renders. No flash of login.</p></div>
+  <div class="card"><h4>Access token expires mid-session</h4>
+  <p>Request 401 → interceptor refreshes once → <code class="inline">setToken</code> → replays request (+ any queued) → user notices nothing.</p></div>
+  <div class="card"><h4>Refresh token expired</h4>
+  <p>Refresh 401 → interceptor calls store <code class="inline">clear()</code> → session reset + toast → guard redirects to <code class="inline">/login</code>.</p></div>
+  <div class="card"><h4>Logout</h4>
+  <p>Store <code class="inline">logout()</code> → <code class="inline">POST /admin/logout</code> (revokes token, clears cookie) → session reset → guard sends to <code class="inline">/login</code>.</p></div>
+  <div class="card"><h4>Theme</h4>
+  <p><code class="inline">toggle()</code> flips <code class="inline">&lt;html class="dark"&gt;</code>, persists to <code class="inline">localStorage</code> via <code class="inline">persist</code>, and Sonner re-themes via <code class="inline">useTheme</code>.</p></div>
+</div>
+
+<!-- =============================================== -->
+<h2 class="section" id="checklist">17. Build checklist</h2>
+<ol class="steps">
+  <li class="step"><b>Install</b> <code class="inline">npm install zustand sonner react-hook-form zod @hookform/resolvers</code> + <code class="inline">npm install -D @tanstack/react-query-devtools</code>; confirm <code class="inline">.env</code> + add <code class="inline">.env.example</code>.</li>
+  <li class="step"><b>Delete</b> <code class="inline">src/context/</code>, <code class="inline">src/provider/</code>, <code class="inline">src/lib/auth-storage.js</code>, and <code class="inline">src/lib/useTheme.js</code>.</li>
+  <li class="step"><b>Add</b> <code class="inline">lib/api.js</code>, <code class="inline">lib/base-service.js</code>, <code class="inline">lib/query-client.js</code>, <code class="inline">lib/errors.js</code>.</li>
+  <li class="step"><b>Add stores &amp; services</b>: <code class="inline">features/auth/auth.store.js</code> + <code class="inline">features/auth/auth.api.js</code> (<code class="inline">AuthService extends BaseService</code>), and <code class="inline">store/theme.store.js</code>.</li>
+  <li class="step"><b>Add</b> <code class="inline">hooks/useAuth.js</code> + <code class="inline">hooks/useTheme.js</code> (store selectors) and <code class="inline">components/ui/sonner.jsx</code>.</li>
+  <li class="step"><b>Rewrite</b> <code class="inline">App.jsx</code> (QueryClientProvider + Toaster + Devtools + bootstrap effect) and <code class="inline">main.jsx</code> (BrowserRouter).</li>
+  <li class="step"><b>Fix</b> <code class="inline">routes/middleware.jsx</code> import + loading guard. Update <code class="inline">ThemeToggle</code>/<code class="inline">AuthLayout</code> to read theme from <code class="inline">useTheme</code>.</li>
+  <li class="step"><b>Set up the data layer</b> (§9): per-resource <code class="inline">features/&lt;name&gt;/</code> folders with <code class="inline">.api.js</code> (service class), <code class="inline">.keys.js</code>, <code class="inline">.hooks.js</code>. Add <code class="inline">validation/</code> Zod schemas; forms use react-hook-form + <code class="inline">zodResolver</code> + <code class="inline">useMutation</code>.</li>
+  <li class="step"><b>Wire screens</b>: Login → Forgot → Reset → Profile → PasswordUpdate → Topbar logout.</li>
+  <li class="step"><b>Verify backend CORS</b> allows the SPA origin with <code class="inline">supports_credentials: true</code>.</li>
+  <li class="step"><b>Test the six flows</b> in §16. Confirm no token in <code class="inline">localStorage</code> (DevTools → Application → only <code class="inline">sk-theme</code> should appear).</li>
+</ol>
+
+<div class="ok"><b>Acceptance:</b> Login works; reload keeps you signed in (silent refresh via the store's bootstrap); <code class="inline">localStorage</code> never contains a token; an expired access token refreshes invisibly; an expired refresh token logs you out with a toast; theme toggle persists and re-themes toasts.</div>
+
+<hr>
+<p class="muted" style="font-size:13px">Generated for <code class="inline">starter_kit_frontend</code> · React 19 · Vite · react-router v8 · axios · Zustand · TanStack Query · sonner. Companion to <code class="inline">docs/admin-auth-refresh-token-react.html</code>.</p>
+
+</div>
+</body>
+</html>
